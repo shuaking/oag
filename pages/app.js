@@ -4,11 +4,11 @@
   const state = {
     assets: [],
     filteredAssets: [],
-    filterCounts: { all: 0, agent: 0, skill: 0, mcp: 0 },
+    filterCounts: { all: 0, agent: 0, subagent: 0, skill: 0, mcp: 0 },
     query: '',
     queryRaw: '',
     activeType: 'all',
-    baseCounts: { total: 0, agent: 0, skill: 0, mcp: 0 },
+    baseCounts: { total: 0, agent: 0, subagent: 0, skill: 0, mcp: 0 },
     loadError: '',
     selectedAssetId: '',
     selectedFileIndex: -1,
@@ -24,10 +24,12 @@
     activeFilter: document.getElementById('activeFilter'),
     filterCountAll: document.getElementById('filterCountAll'),
     filterCountAgent: document.getElementById('filterCountAgent'),
+    filterCountSubagent: document.getElementById('filterCountSubagent'),
     filterCountSkill: document.getElementById('filterCountSkill'),
     filterCountMcp: document.getElementById('filterCountMcp'),
     totalStat: document.getElementById('totalStat'),
     agentStat: document.getElementById('agentStat'),
+    subagentStat: document.getElementById('subagentStat'),
     skillStat: document.getElementById('skillStat'),
     mcpStat: document.getElementById('mcpStat'),
     resultSummary: document.getElementById('resultSummary'),
@@ -284,6 +286,7 @@
     const fallback = {
       total: assets.length,
       agent: assets.filter((item) => item.type === 'agent').length,
+      subagent: assets.filter((item) => item.type === 'subagent').length,
       skill: assets.filter((item) => item.type === 'skill').length,
       mcp: assets.filter((item) => item.type === 'mcp').length,
     };
@@ -295,6 +298,7 @@
     return {
       total: toSafeNumber(rawCounts.total, fallback.total),
       agent: toSafeNumber(rawCounts.agent, fallback.agent),
+      subagent: toSafeNumber(rawCounts.subagent, fallback.subagent),
       skill: toSafeNumber(rawCounts.skill, fallback.skill),
       mcp: toSafeNumber(rawCounts.mcp, fallback.mcp),
     };
@@ -317,6 +321,7 @@
     return {
       all: items.length,
       agent: items.filter((item) => item.type === 'agent').length,
+      subagent: items.filter((item) => item.type === 'subagent').length,
       skill: items.filter((item) => item.type === 'skill').length,
       mcp: items.filter((item) => item.type === 'mcp').length,
     };
@@ -372,6 +377,7 @@
   function updateBaseStats() {
     elements.totalStat.textContent = formatCount(state.baseCounts.total || 0);
     elements.agentStat.textContent = formatCount(state.baseCounts.agent || 0);
+    elements.subagentStat.textContent = formatCount(state.baseCounts.subagent || 0);
     elements.skillStat.textContent = formatCount(state.baseCounts.skill || 0);
     elements.mcpStat.textContent = formatCount(state.baseCounts.mcp || 0);
   }
@@ -386,6 +392,9 @@
     }
     if (elements.filterCountAgent) {
       elements.filterCountAgent.textContent = formatCount(state.filterCounts.agent || 0);
+    }
+    if (elements.filterCountSubagent) {
+      elements.filterCountSubagent.textContent = formatCount(state.filterCounts.subagent || 0);
     }
     if (elements.filterCountSkill) {
       elements.filterCountSkill.textContent = formatCount(state.filterCounts.skill || 0);
@@ -1123,6 +1132,9 @@
   function classForType(type) {
     if (type === 'agent') {
       return 'type-agent';
+    }
+    if (type === 'subagent') {
+      return 'type-subagent';
     }
     if (type === 'skill') {
       return 'type-skill';

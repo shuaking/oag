@@ -441,6 +441,10 @@ dd {
   border-color: rgba(34, 211, 238, 0.3);
 }
 
+.stat-card-subagent {
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
 .stat-card-skill {
   border-color: rgba(245, 158, 11, 0.32);
 }
@@ -568,6 +572,10 @@ dd {
 
 .type-chip.type-agent {
   color: #22d3ee;
+}
+
+.type-chip.type-subagent {
+  color: #4ade80;
 }
 
 .type-chip.type-skill {
