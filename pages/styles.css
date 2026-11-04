@@ -229,6 +229,7 @@ dd {
 }
 
 .reset-btn,
+.language-btn,
 #emptyResetBtn,
 .asset-detail-btn,
 .detail-close-btn,
@@ -242,6 +243,53 @@ dd {
     color 180ms ease,
     box-shadow 180ms ease,
     transform 180ms var(--ease-standard);
+}
+
+.header-actions {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: end;
+  gap: 0.48rem;
+}
+
+.language-switch {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 3px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.78);
+  box-shadow: var(--shadow-soft);
+}
+
+.language-btn {
+  min-height: 32px;
+  padding: 0.34rem 0.64rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.language-btn:hover {
+  color: var(--text-1);
+}
+
+.language-btn.is-active {
+  border-color: rgba(167, 139, 250, 0.58);
+  background: linear-gradient(145deg, rgba(124, 58, 237, 0.38), rgba(30, 41, 59, 0.84));
+  color: #f5f3ff;
+  box-shadow: 0 2px 10px rgba(2, 6, 23, 0.34);
+}
+
+.language-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .reset-btn {
@@ -1169,6 +1217,10 @@ dd {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .header-actions {
+    justify-items: start;
+  }
+
   .reset-btn {
     justify-self: start;
   }
@@ -1239,6 +1291,20 @@ dd {
 }
 
 @media (max-width: 640px) {
+  .header-actions {
+    width: 100%;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
+  .language-switch {
+    justify-self: start;
+  }
+
+  .reset-btn {
+    justify-self: end;
+  }
+
   .status-metrics {
     grid-template-columns: 1fr;
   }
