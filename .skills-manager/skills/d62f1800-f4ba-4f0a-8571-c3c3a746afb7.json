@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "d62f1800-f4ba-4f0a-8571-c3c3a746afb7",
+  "path": "jiang-hushuo-perspective",
+  "path_key": "jiang-hushuo-perspective",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "import",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

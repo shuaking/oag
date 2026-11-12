@@ -119,3 +119,7 @@ test
 
 # Generated GitHub Pages data
 public/
+*.tmp
+.skills-manager.lock
+__pycache__/
+*.pyc
