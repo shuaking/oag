@@ -23,6 +23,7 @@
     activeType: 'all',
     serverMode: false,
     serverOauth: false,
+    localMode: false,
     busy: false,
     deviceCancel: false,
     deviceVerificationUri: '',
@@ -41,14 +42,29 @@
     updateAuthUi();
     await detectServer();
 
-    const savedToken = safeSessionGet(TOKEN_KEY);
-    if (savedToken) {
+    if (state.localMode) {
       try {
-        await loginWithToken(savedToken, { silent: true });
+        const res = await fetch('/api/auth/me', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await safeJson(res);
+          if (data && data.user) {
+            state.user = data.user;
+            await reloadAssets();
+          }
+        }
       } catch {
-        state.user = null;
-        state.token = '';
-        safeSessionSet(TOKEN_KEY, '');
+        /* stay logged out */
+      }
+    } else {
+      const savedToken = safeSessionGet(TOKEN_KEY);
+      if (savedToken) {
+        try {
+          await loginWithToken(savedToken, { silent: true });
+        } catch {
+          state.user = null;
+          state.token = '';
+          safeSessionSet(TOKEN_KEY, '');
+        }
       }
     }
     updateAuthUi();
@@ -200,13 +216,16 @@
       if (res.ok) {
         const data = await res.json();
         state.serverMode = true;
+        state.localMode = Boolean(data && data.local);
         state.serverOauth = Boolean(data && data.oauthConfigured);
       } else {
         state.serverMode = false;
+        state.localMode = false;
         state.serverOauth = false;
       }
     } catch {
       state.serverMode = false;
+      state.localMode = false;
       state.serverOauth = false;
     }
     updateAuthUi();
@@ -224,6 +243,7 @@
         if (data && data.ok) {
           lines.push(`后台：可用（/api/health 200，OAuth ${data.oauthConfigured ? '已配置' : '未配置'}）`);
           lines.push('GitHub API：经本地后台 /api/github/proxy 代理');
+          if (data.local) lines.push('模式：本地模式（读写本机仓库 + git commit/push）');
         } else {
           lines.push(`后台：不可用（/api/health 返回非 JSON/异常，HTTP ${res.status}）`);
           lines.push('GitHub API：浏览器直连（可能被拦截）');
@@ -247,6 +267,24 @@
   async function loginWithToken(token, { silent = false } = {}) {
     state.token = token.trim();
     if (!silent) setStatus('正在验证令牌…');
+
+    if (state.localMode) {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: state.token, owner: state.repo.owner, repo: state.repo.repo }),
+      });
+      const data = await safeJson(res);
+      if (!res.ok) {
+        throw new Error(data.error_description || data.error || `登录失败（HTTP ${res.status}）`);
+      }
+      state.user = data.user;
+      updateAuthUi();
+      setStatus(`已登录：${data.user.login}（本地模式：直接读写本机仓库并 git push）`, 'ok');
+      await reloadAssets();
+      return;
+    }
+
     const user = await gh('/user');
     await gh(repoBasePath()); // verify the token can see the repo
     state.user = user;
@@ -317,6 +355,9 @@
 
   function logout() {
     state.token = '';
+    if (state.localMode) {
+      fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    }
     state.user = null;
     state.assets = [];
     safeSessionSet(TOKEN_KEY, '');
@@ -413,51 +454,12 @@
   /* ---------------- assets read ---------------- */
 
   async function reloadAssets() {
-    if (!state.token) return;
+    if (!state.localMode && !state.token) return;
     el.loginGate.hidden = true;
     el.assetLoading.hidden = false;
     el.assetList.hidden = true;
     try {
-      const tree = await gh(`/git/trees/${encodeURIComponent(state.repo.branch)}?recursive=1`);
-      const nodes = (tree && tree.tree) || [];
-      const assets = [];
-
-      for (const [type, meta] of Object.entries(TYPE_META)) {
-        const prefix = `${meta.dir}/`;
-        const names = new Set();
-        for (const node of nodes) {
-          if (node.type !== 'blob' || typeof node.path !== 'string') continue;
-          if (!node.path.startsWith(prefix)) continue;
-          const rest = node.path.slice(prefix.length).split('/');
-          if (rest.length === 2 && rest[1] === 'asset.json') names.add(rest[0]);
-        }
-        for (const name of names) {
-          let manifest = null;
-          try {
-            const raw = await ghRaw(
-              `${repoBasePath()}/contents/${encodePath(`${meta.dir}/${name}/asset.json`)}?ref=${encodeURIComponent(state.repo.branch)}`,
-            );
-            manifest = JSON.parse(raw);
-          } catch {
-            manifest = null;
-          }
-          const files = [];
-          const assetPrefix = `${meta.dir}/${name}/`;
-          for (const node of nodes) {
-            if (node.type === 'blob' && typeof node.path === 'string' && node.path.startsWith(assetPrefix)) {
-              files.push(node.path.slice(assetPrefix.length));
-            }
-          }
-          assets.push({
-            type,
-            name,
-            dir: `${meta.dir}/${name}`,
-            manifest: manifest || {},
-            files: files.sort(),
-          });
-        }
-      }
-
+      const assets = state.localMode ? await fetchLocalAssets() : await fetchGithubAssets();
       state.assets = assets.sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type.localeCompare(b.type)));
       el.assetList.hidden = false;
       renderAssets();
@@ -474,7 +476,63 @@
     }
   }
 
+  async function fetchLocalAssets() {
+    const res = await fetch('/api/assets', { cache: 'no-store' });
+    const data = await safeJson(res);
+    if (!res.ok) {
+      throw new Error(data.error_description || data.error || `读取失败（HTTP ${res.status}）`);
+    }
+    return (data.assets || []).map((asset) => ({
+      type: asset.type,
+      name: asset.name,
+      dir: asset.dir,
+      manifest: asset.manifest || {},
+      files: Array.isArray(asset.files) ? asset.files : [],
+    }));
+  }
+
+  async function fetchGithubAssets() {
+    const tree = await gh(`/git/trees/${encodeURIComponent(state.repo.branch)}?recursive=1`);
+    const nodes = (tree && tree.tree) || [];
+    const assets = [];
+
+    for (const [type, meta] of Object.entries(TYPE_META)) {
+      const prefix = `${meta.dir}/`;
+      const names = new Set();
+      for (const node of nodes) {
+        if (node.type !== 'blob' || typeof node.path !== 'string') continue;
+        if (!node.path.startsWith(prefix)) continue;
+        const rest = node.path.slice(prefix.length).split('/');
+        if (rest.length === 2 && rest[1] === 'asset.json') names.add(rest[0]);
+      }
+      for (const name of names) {
+        let manifest = null;
+        try {
+          const raw = await ghRaw(
+            `${repoBasePath()}/contents/${encodePath(`${meta.dir}/${name}/asset.json`)}?ref=${encodeURIComponent(state.repo.branch)}`,
+          );
+          manifest = JSON.parse(raw);
+        } catch {
+          manifest = null;
+        }
+        const files = [];
+        const assetPrefix = `${meta.dir}/${name}/`;
+        for (const node of nodes) {
+          if (node.type === 'blob' && typeof node.path === 'string' && node.path.startsWith(assetPrefix)) {
+            files.push(node.path.slice(assetPrefix.length));
+          }
+        }
+        assets.push({ type, name, dir: `${meta.dir}/${name}`, manifest: manifest || {}, files: files.sort() });
+      }
+    }
+    return assets;
+  }
+
   async function updateHeadInfo() {
+    if (state.localMode) {
+      el.headInfo.textContent = `本地仓库：${state.repo.owner}/${state.repo.repo} · ${state.repo.branch}`;
+      return;
+    }
     try {
       const commit = await gh(`${repoBasePath()}/commits/${encodeURIComponent(state.repo.branch)}`);
       const sha = commit.sha || '';
@@ -607,6 +665,21 @@
     setBusy(true);
     setStatus(`正在删除 ${asset.type}/${asset.name}…`);
     try {
+      if (state.localMode) {
+        const res = await fetch('/api/assets', {
+          method: 'DELETE',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ type: asset.type, name: asset.name }),
+        });
+        const data = await safeJson(res);
+        if (!res.ok) {
+          throw new Error(data.error_description || data.error || `删除失败（HTTP ${res.status}）`);
+        }
+        await reloadAssets();
+        reportWrite('已删除', asset, data.commit);
+        return;
+      }
+
       const tree = await gh(`/git/trees/${encodeURIComponent(state.repo.branch)}?recursive=1`);
       const prefix = `${asset.dir}/`;
       const deletes = ((tree && tree.tree) || [])
@@ -630,6 +703,22 @@
     } finally {
       setBusy(false);
     }
+  }
+
+  function reportWrite(verb, asset, commit) {
+    const label = `${asset.type}/${asset.name}`;
+    let message = `${verb} ${label}`;
+    let kind = 'ok';
+    if (commit && commit.skipped) {
+      message += '（无变更）';
+    } else if (commit && commit.pushed === false) {
+      message += `：本地已提交，但推送失败 —— ${commit.pushError || '未知错误'}`;
+      kind = 'error';
+    } else if (commit && commit.pushed === true) {
+      message += '（已提交并推送）';
+    }
+    setStatus(message, kind);
+    showToast(message, kind, (commit && (commit.url || commit.html_url)) || '');
   }
 
   /* ---------------- create ---------------- */
@@ -728,7 +817,7 @@
 
   async function submitCreate(event) {
     event.preventDefault();
-    if (!state.token) {
+    if (!state.localMode && !state.token) {
       setFormStatus('请先登录。', 'error');
       return;
     }
@@ -778,14 +867,35 @@
       ];
 
       setBusy(true);
-      setFormStatus('正在提交到 GitHub…');
-      const commit = await commitChanges({ message: `feat(admin): add ${type}/${name}`, adds, deletes: [] });
+      let commit;
+      if (state.localMode) {
+        setFormStatus('正在写入本机仓库并提交…');
+        const res = await fetch('/api/assets', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            type,
+            name,
+            description: el.descInput.value.trim(),
+            tools: checkedTools(),
+            mainFile: meta.mainFile,
+            mainContent: content,
+            extraFiles: extra,
+          }),
+        });
+        const data = await safeJson(res);
+        if (!res.ok) {
+          throw new Error(data.error_description || data.error || `创建失败（HTTP ${res.status}）`);
+        }
+        commit = data.commit;
+      } else {
+        setFormStatus('正在提交到 GitHub…');
+        commit = await commitChanges({ message: `feat(admin): add ${type}/${name}`, adds, deletes: [] });
+      }
       resetCreateForm();
       switchTab('list');
       await reloadAssets();
-      const url = commitUrl(commit);
-      showToast(`已创建 ${type}/${name}`, 'ok', url);
-      setStatus(`已创建 ${type}/${name}。`, 'ok');
+      reportWrite('已创建', { type, name }, commit);
     } catch (error) {
       setFormStatus(error.message, 'error');
       setStatus(`创建失败：${error.message}`, 'error');
@@ -858,9 +968,10 @@
     el.patBox.hidden = authed;
 
     if (state.serverMode) {
-      el.hostBadge.textContent = state.serverOauth ? '服务端模式 · OAuth 可用' : '服务端模式 · 代理已启用';
+      el.hostBadge.textContent = state.serverOauth ? '本地模式 · OAuth 可用' : '本地模式 · 直连仓库';
       el.hostBadge.classList.add('is-server');
-      el.modeHint.textContent = `已连接本地后台：${window.location.origin}（GitHub API 经 /api/github/proxy 代理）。`;
+      el.modeHint.textContent =
+        `本地模式：${window.location.origin} —— 直接读写本机仓库 ${state.repo.owner}/${state.repo.repo}，每次新增/删除自动 git commit + push；登录令牌仅用于校验 GitHub 身份。`;
     } else {
       el.hostBadge.textContent = '静态模式 · 浏览器直连';
       el.hostBadge.classList.remove('is-server');

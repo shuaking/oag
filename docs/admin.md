@@ -80,7 +80,7 @@
 
 - PAT / OAuth 令牌只存在于浏览器会话（`sessionStorage`），不会提交到仓库。
 - 后台不包含任何服务端密钥；`admin-server.js` 仅读取 `OAG_GITHUB_CLIENT_ID` 并转发设备码请求。
-- 通过 `npm run admin` 运行时，浏览器对 GitHub API 的请求会经本地后台的 `/api/github/proxy` 转发（令牌按请求头透传、服务端不落盘），可绕开浏览器 CORS/网络拦截。
+- 通过 `npm run admin` 运行时是**本地模式**：浏览器只与本地后台通信，后台直接读写本机仓库并 `git commit` + `git push`（使用本机已配置的 git 凭据），浏览器**完全不访问 api.github.com**，因此不受 CORS/网络限制影响；登录令牌只在服务端用于校验 GitHub 身份，不落盘。
 - 建议使用**细粒度、仅限本仓库、Contents 读写**的令牌，最小化权限。
 - 所有写入都可追溯：每次新增/删除都是一次独立提交，可在 GitHub 提交历史中审计。
 
@@ -88,12 +88,12 @@
 
 ### 读取失败：Failed to fetch
 
-浏览器无法直连 `https://api.github.com`（网络/代理拦截、隐私插件、内嵌浏览器限制等）。处理方式：
+浏览器直连 `https://api.github.com` 失败（CORS/代理拦截、隐私插件、内嵌浏览器限制等）。处理方式：
 
-1. 改用后台服务运行：`npm run admin`，然后访问它打开的 `http://127.0.0.1:4180/admin.html`。
-   - 此时后台会通过 `/api/github/proxy` 代理所有 GitHub API 请求，避开浏览器直连问题。
-2. 确认能访问 `https://api.github.com`（例如浏览器打开该地址应返回 JSON）。
-3. 仍然失败时检查是否有公司代理/防火墙拦截 `api.github.com`。
+1. **改用本地模式后台**（推荐）：`npm run admin`，然后访问它打印的 `http://127.0.0.1:4180/admin.html`。
+   - 本地模式下浏览器只和本地后台通信，后台直接读写本机仓库并 `git push`，完全不需要浏览器访问 api.github.com。
+2. 确认 `npm run admin` 确实启动了（控制台会打印 `OAuth device flow` / `GitHub API proxy` 行，且端口 4180 在监听）。
+3. 端口被占用时用 `PORT=4181 npm run admin` 换端口。
 
 ### 浏览器拦截弹窗 / 打不开 GitHub 令牌页
 
