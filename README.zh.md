@@ -112,22 +112,32 @@ oag --help
 
 ## 管理后台（GitHub 登录）
 
-注册表自带一个浏览器管理后台：`pages/admin.html`（GitHub Pages 发布后路径为 `/admin.html`），可用表单新增 / 删除 `agent`、`subagent`、`skill`、`mcp`、`prompt` 各类资产。每次操作都会通过 GitHub API 直接提交到仓库（一次操作一次原子提交），随后 Pages 工作流会自动重建展示数据。
+浏览器管理后台位于 `pages/admin.html`，可用表单新增 / 删除 `agent`、`subagent`、`skill`、`mcp`、`prompt` 各类资产。有两种运行方式。
 
-登录有两种方式：
+### 本地模式（推荐）
 
-- **个人访问令牌（PAT）**：任意环境可用（包括纯静态的 GitHub Pages 站点）。使用对本仓库有 **Contents: Read and write** 权限的细粒度令牌（或带 `repo` 的经典令牌）。
-- **OAuth 设备码登录**：标准的「Sign in with GitHub」流程。由于 GitHub 的 OAuth 端点会拦截浏览器 CORS，需要一个同源后台代理：
+```bash
+npm run admin        # 自动打开 http://127.0.0.1:4180/admin.html
+```
 
-  ```bash
-  # 1) 创建一个 OAuth App 并勾选 Enable Device Flow，复制 Client ID。
-  # 2) 携带 Client ID 启动后台：
-  OAG_GITHUB_CLIENT_ID=<client-id> npm run admin   # 自动打开 http://127.0.0.1:4180/admin.html
-  ```
+- 后台直接读写**本机仓库**，每次新增 / 删除都会用本机已配置的 git 凭据执行 `git commit` + `git push`。
+- 浏览器只与本地后台通信（`/api/auth/*`、`/api/assets`），**完全不访问 `api.github.com`**，因此不受浏览器 CORS / 网络 / 插件拦截影响。
+- 用 GitHub PAT 登录：令牌只在服务端校验身份，任意有效令牌即可；推送走你本机已有的 git 凭据。
+- 环境变量：`PORT`（默认 `4180`）、`HOST`（默认 `127.0.0.1`）、`OAG_NO_OPEN=1` 关闭自动打开浏览器、`OAG_REPO_ROOT` 指定其它仓库目录。
 
-`npm run admin` 会启动后台并在默认浏览器打开后台页面（设 `OAG_NO_OPEN=1` 可关闭自动打开）。用令牌登录时，令牌框为空（或点「在本机浏览器打开 GitHub」）会在本机浏览器打开 GitHub 令牌页。
+### 静态模式（GitHub Pages）
 
-安装、字段与安全说明详见 [docs/admin.md](docs/admin.md)。
+同一个 `pages/admin.html` 会发布到 GitHub Pages 的 `/admin.html`。没有后台时，它用 PAT 在浏览器里直接调用 GitHub REST API（需 **Contents: Read and write** 的细粒度令牌），通过 API 提交。此模式要求浏览器本身能访问 `api.github.com`。
+
+### OAuth 设备码登录（可选）
+
+不想粘贴令牌时，可创建启用 **Device Flow** 的 OAuth App，并带 Client ID 启动后台：
+
+```bash
+OAG_GITHUB_CLIENT_ID=<client-id> npm run admin
+```
+
+`npm run admin` 会在默认浏览器打开后台页面；用令牌登录时，令牌框为空（或点「在本机浏览器打开 GitHub」）会在本机浏览器打开 GitHub 令牌页。安装、字段、安全与排错详见 [docs/admin.md](docs/admin.md)。
 
 ## 命令
 

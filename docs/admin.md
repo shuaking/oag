@@ -1,10 +1,10 @@
 # OAG 管理后台（Admin Console）
 
-管理后台用于在浏览器里直接维护资产仓库中的 `agent` / `subagent` / `skill` / `mcp` / `prompt` 资产：查看、按字段新增、删除。所有变更都通过 GitHub API 以一次原子提交写入仓库，随后现有的 GitHub Pages 工作流会重新生成展示站数据。
+管理后台用于在浏览器里直接维护资产仓库中的 `agent` / `subagent` / `skill` / `mcp` / `prompt` 资产：查看、按字段新增、删除。它有两种运行方式：**本地模式（`npm run admin`，推荐）**直接读写本机仓库并 `git commit` + `git push`，浏览器不访问 GitHub；**静态模式（GitHub Pages）**则用 PAT 在浏览器里直接调用 GitHub API 提交。
 
 - 页面：`pages/admin.html`（构建后随展示站一起发布，路径为 `/admin.html`）
 - 代码：`pages/admin.js`、`pages/admin.css`、`pages/admin-config.js`
-- 可选后台服务：`scripts/admin-server.js`（`npm run admin`）
+- 后台服务：`scripts/admin-server.js`（`npm run admin`，默认 `http://127.0.0.1:4180/admin.html`）
 
 ## 1. 登录方式
 
@@ -13,8 +13,8 @@
 ### 1.1 个人访问令牌（PAT）—— 任意环境可用
 
 1. 在 GitHub → Settings → Developer settings → Personal access tokens 创建一个令牌。
-   - 细粒度令牌（Fine-grained）：只授权目标仓库，权限选 **Contents: Read and write**。
-   - 经典令牌（Classic）：勾选 `repo`。
+   - **本地模式**：令牌只用于服务端校验身份，任意有效令牌即可（推送使用本机 git 凭据）。
+   - **静态模式**：需细粒度令牌授权本仓库 **Contents: Read and write**，或经典令牌勾选 `repo`。
 2. 打开后台页面，在左侧「GitHub 登录」里粘贴令牌，点击「用令牌登录」。
    - 令牌框为空时点「用令牌登录」，或点「在本机浏览器打开 GitHub 创建令牌」，后台会在**本机默认浏览器**打开 GitHub 令牌页（`npm run admin` 通过 `/api/open-external` 唤起本机浏览器；纯静态站点则退化为新标签页）。
 
@@ -108,3 +108,4 @@
 | `PORT` | 后台服务端口 | `4180` |
 | `HOST` | 后台服务监听地址 | `127.0.0.1` |
 | `OAG_NO_OPEN` | 设为 `1` 时启动后台不自动打开浏览器 | 空（自动打开） |
+| `OAG_REPO_ROOT` | 指定后台读写的仓库目录（本地模式） | 当前项目根目录 |

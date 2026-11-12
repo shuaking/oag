@@ -112,22 +112,32 @@ Notes:
 
 ## Admin console (GitHub login)
 
-The registry ships with a browser admin console at `pages/admin.html` (published as `/admin.html` by the Pages workflow) for adding and deleting assets of every type (`agent`, `subagent`, `skill`, `mcp`, `prompt`) from a form. Every change is committed straight to the repository through the GitHub API (one atomic commit per action), so the Pages data is rebuilt automatically.
+A browser admin console lives at `pages/admin.html` for adding and deleting assets of every type (`agent`, `subagent`, `skill`, `mcp`, `prompt`) from a form. There are two ways to run it.
 
-Login uses GitHub in one of two ways:
+### Local mode (recommended)
 
-- **Personal access token (PAT)** — works anywhere, including the static GitHub Pages site. Use a fine-grained token with **Contents: Read and write** on this repository (or a classic token with `repo`).
-- **OAuth Device Flow** — a real "Sign in with GitHub" flow. Because GitHub's OAuth endpoints reject browser CORS, it needs the bundled backend proxy:
+```bash
+npm run admin        # opens http://127.0.0.1:4180/admin.html
+```
 
-  ```bash
-  # 1) Create an OAuth App and enable "Device Flow"; copy its Client ID.
-  # 2) Start the admin backend with that Client ID:
-  OAG_GITHUB_CLIENT_ID=<client-id> npm run admin   # opens http://127.0.0.1:4180/admin.html
-  ```
+- The backend reads and writes the **local checkout** and runs `git commit` + `git push` (using your machine's configured git credentials) for every add/delete.
+- The browser only talks to the local backend (`/api/auth/*`, `/api/assets`); it **never calls `api.github.com`**, so browser CORS / network / extension restrictions cannot break it.
+- Login with a GitHub PAT: the token is verified server-side only to confirm identity. Any valid token works — pushing uses your existing git credentials.
+- Env: `PORT` (default `4180`), `HOST` (default `127.0.0.1`), `OAG_NO_OPEN=1` to skip opening the browser, `OAG_REPO_ROOT` to point at another checkout.
 
-`npm run admin` starts the backend and opens the console in your default browser (set `OAG_NO_OPEN=1` to skip). With token login, an empty token box (or the "open GitHub" button) launches GitHub's token page in your local browser.
+### Static mode (GitHub Pages)
 
-See [docs/admin.md](docs/admin.md) for setup, fields, and security notes.
+The same `pages/admin.html` is published to GitHub Pages as `/admin.html`. Without a backend it calls the GitHub REST API directly from the browser using a PAT (fine-grained token with **Contents: Read and write**), committing through the GitHub API. This requires the browser itself to be able to reach `api.github.com`.
+
+### OAuth Device Flow (optional)
+
+To sign in with GitHub instead of pasting a token, create an OAuth App with **Device Flow** enabled and start the backend with its Client ID:
+
+```bash
+OAG_GITHUB_CLIENT_ID=<client-id> npm run admin
+```
+
+`npm run admin` opens the console in your default browser; with token login, an empty token box (or the "open GitHub" button) launches GitHub's token page. See [docs/admin.md](docs/admin.md) for fields, security, and troubleshooting.
 
 ## Commands
 
