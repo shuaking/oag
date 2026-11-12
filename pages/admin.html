@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OAG 管理后台</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./admin.css" />
+  </head>
+  <body>
+    <div class="admin-shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="logo-dot" aria-hidden="true"></span>
+          <div>
+            <p class="eyebrow">OAG Registry · Admin Console</p>
+            <h1>资产管理后台</h1>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <span id="hostBadge" class="env-badge">静态模式</span>
+          <a class="ghost-link" href="./index.html">← 返回展示站</a>
+          <div id="authArea" class="auth-area">
+            <button id="topDeviceLoginBtn" class="btn btn-primary" type="button" hidden>使用 GitHub 登录</button>
+            <div id="userChip" class="user-chip" hidden>
+              <img id="userAvatar" alt="avatar" />
+              <span id="userName">-</span>
+              <button id="logoutBtn" class="btn btn-mini" type="button">退出</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="layout">
+        <aside class="sidebar">
+          <section class="panel">
+            <h2 class="panel-title">仓库连接</h2>
+            <label class="field">
+              <span>Owner</span>
+              <input id="ownerInput" type="text" autocomplete="off" spellcheck="false" />
+            </label>
+            <label class="field">
+              <span>Repo</span>
+              <input id="repoInput" type="text" autocomplete="off" spellcheck="false" />
+            </label>
+            <label class="field">
+              <span>Branch</span>
+              <input id="branchInput" type="text" autocomplete="off" spellcheck="false" />
+            </label>
+            <p id="repoHint" class="hint"></p>
+          </section>
+
+          <section class="panel">
+            <h2 class="panel-title">GitHub 登录</h2>
+            <div id="patBox" class="auth-block">
+              <p class="hint">
+                粘贴拥有该仓库 <code>contents:write</code> 权限的个人访问令牌（PAT）。令牌只保存在当前浏览器会话，不写入仓库。
+              </p>
+              <input id="patInput" type="password" placeholder="ghp_... 或 github_pat_..." autocomplete="off" />
+              <button id="patLoginBtn" class="btn btn-primary" type="button">用令牌登录</button>
+            </div>
+            <div id="deviceBox" class="auth-block" hidden>
+              <p class="hint">或使用 GitHub 设备码登录（需要后台服务器配置 OAuth App Client ID）。</p>
+              <button id="deviceLoginBtn" class="btn" type="button">使用 GitHub 登录</button>
+            </div>
+          </section>
+
+          <section class="panel status-panel">
+            <h2 class="panel-title">状态</h2>
+            <div id="statusLog" class="status-log">未登录。</div>
+            <div id="headInfo" class="head-info"></div>
+          </section>
+        </aside>
+
+        <main class="workspace">
+          <nav class="tabs" role="tablist" aria-label="工作区">
+            <button class="tab is-active" type="button" data-tab="list" role="tab" aria-selected="true">
+              资产列表 <span id="assetTotal" class="pill">0</span>
+            </button>
+            <button class="tab" type="button" data-tab="create" role="tab" aria-selected="false">新增资产</button>
+          </nav>
+
+          <section id="viewList" class="view">
+            <div class="toolbar">
+              <div id="typeFilters" class="type-filters" role="group" aria-label="按类型筛选">
+                <button class="chip is-active" type="button" data-type="all">全部</button>
+                <button class="chip" type="button" data-type="agent">Agent</button>
+                <button class="chip" type="button" data-type="subagent">Subagent</button>
+                <button class="chip" type="button" data-type="skill">Skill</button>
+                <button class="chip" type="button" data-type="mcp">MCP</button>
+                <button class="chip" type="button" data-type="prompt">Prompt</button>
+              </div>
+              <button id="refreshBtn" class="btn" type="button">刷新</button>
+            </div>
+
+            <div id="loginGate" class="gate">
+              <p class="gate-title">尚未登录</p>
+              <p class="gate-copy">请先在左侧使用 GitHub 登录，然后即可读取与增删资产。</p>
+            </div>
+            <div id="assetLoading" class="loading" hidden>读取仓库资产中…</div>
+            <div id="assetList" class="asset-list" hidden></div>
+          </section>
+
+          <section id="viewCreate" class="view" hidden>
+            <div id="createGate" class="gate">
+              <p class="gate-title">尚未登录</p>
+              <p class="gate-copy">请先登录后再新增资产。</p>
+            </div>
+
+            <form id="createForm" class="create-form" hidden>
+              <div class="form-grid">
+                <label class="field">
+                  <span>资产类型</span>
+                  <select id="typeSelect">
+                    <option value="agent">Agent（智能体）</option>
+                    <option value="subagent">Subagent（子智能体）</option>
+                    <option value="skill">Skill（技能）</option>
+                    <option value="mcp">MCP（服务）</option>
+                    <option value="prompt" selected>Prompt（提示词）</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>名称 <em>kebab-case</em></span>
+                  <input id="nameInput" type="text" placeholder="my-asset" autocomplete="off" spellcheck="false" />
+                </label>
+                <label class="field field-wide">
+                  <span>描述</span>
+                  <input id="descInput" type="text" placeholder="一句话说明该资产用途（可选）" autocomplete="off" />
+                </label>
+                <div class="field field-wide">
+                  <span>适用工具</span>
+                  <div class="tool-toggles" id="toolToggles">
+                    <label class="check"><input type="checkbox" value="claude" checked /> claude</label>
+                    <label class="check"><input type="checkbox" value="codex" checked /> codex</label>
+                    <label class="check"><input type="checkbox" value="opencode" checked /> opencode</label>
+                  </div>
+                  <p class="hint">不勾选任何工具表示不限制。</p>
+                </div>
+              </div>
+
+              <div class="editor-block">
+                <div class="editor-head">
+                  <h3>主文件 <code id="mainFileName">PROMPT.md</code></h3>
+                  <p id="mainFileHint" class="hint"></p>
+                </div>
+                <textarea id="mainContent" class="code-area" spellcheck="false" placeholder="在此粘贴资产内容…"></textarea>
+              </div>
+
+              <div class="editor-block">
+                <div class="editor-head">
+                  <h3>附加文件 <span class="muted">（可选）</span></h3>
+                  <button id="addExtraBtn" class="btn btn-mini" type="button">+ 添加文件</button>
+                </div>
+                <div id="extraFiles" class="extra-files"></div>
+              </div>
+
+              <div class="editor-block">
+                <div class="editor-head">
+                  <h3>将写入的 <code>asset.json</code></h3>
+                </div>
+                <pre id="manifestPreview" class="manifest-preview">{}</pre>
+              </div>
+
+              <div class="form-actions">
+                <button id="submitBtn" class="btn btn-primary btn-lg" type="submit">提交到 GitHub</button>
+                <button id="resetFormBtn" class="btn" type="button">清空</button>
+                <span id="formStatus" class="form-status" aria-live="polite"></span>
+              </div>
+            </form>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <div id="deviceModal" class="modal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="deviceModalTitle">
+        <h3 id="deviceModalTitle">GitHub 设备码登录</h3>
+        <p class="hint">在 GitHub 打开下面的地址，输入一次性代码完成授权。</p>
+        <p id="deviceUri" class="mono device-uri"></p>
+        <p id="deviceCode" class="device-code">----</p>
+        <p id="deviceStatus" class="hint">等待授权…</p>
+        <div class="modal-actions">
+          <button id="deviceCancelBtn" class="btn" type="button">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+
+    <script src="./admin-config.js"></script>
+    <script src="./admin.js"></script>
+  </body>
+</html>

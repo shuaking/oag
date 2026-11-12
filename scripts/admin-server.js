@@ -1,0 +1,275 @@
+#!/usr/bin/env node
+'use strict';
+
+/*
+ * OAG admin backend.
+ *
+ * Serves the managed admin console (pages/ -> public/) and proxies GitHub's
+ * OAuth Device Flow so the browser can use real "Sign in with GitHub" without
+ * exposing a client secret or hitting GitHub's CORS restrictions. Commits are
+ * made by the browser through the GitHub API with the resulting token.
+ *
+ * Env:
+ *   OAG_GITHUB_CLIENT_ID  OAuth App client id (device flow enabled). Optional:
+ *                         without it the admin still works with a PAT.
+ *   PORT                  default 4173
+ *   HOST                  default 127.0.0.1
+ */
+
+const fs = require('fs/promises');
+const path = require('path');
+const http = require('http');
+const { createReadStream } = require('fs');
+const { spawn } = require('child_process');
+
+const REPO_ROOT = path.resolve(__dirname, '..');
+const PUBLIC_DIR = path.join(REPO_ROOT, 'public');
+const PAGES_DIR = path.join(REPO_ROOT, 'pages');
+const BUILD_SCRIPT = path.join(REPO_ROOT, 'scripts', 'build-pages-data.js');
+const CLIENT_ID = (process.env.OAG_GITHUB_CLIENT_ID || '').trim();
+const MAX_BODY_BYTES = 64 * 1024;
+
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.md': 'text/markdown; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.ico': 'image/x-icon',
+};
+
+async function main() {
+  const port = parsePort(process.env.PORT);
+  const host = process.env.HOST || '127.0.0.1';
+
+  await runBuildScript();
+  await copyPagesToPublic();
+
+  const server = http.createServer((request, response) => {
+    route(request, response).catch((error) => {
+      console.error(error);
+      if (!response.headersSent) {
+        sendJson(response, 500, { error: 'internal_error', error_description: error.message });
+      } else {
+        response.end();
+      }
+    });
+  });
+
+  server.on('error', (error) => {
+    console.error(`Failed to start admin server: ${error.message}`);
+    process.exitCode = 1;
+  });
+
+  server.listen(port, host, () => {
+    const address = server.address();
+    const actualPort = typeof address === 'object' && address ? address.port : port;
+    console.log(`OAG admin console: http://${host}:${actualPort}/admin.html`);
+    console.log(`OAuth device flow: ${CLIENT_ID ? 'enabled' : 'disabled (set OAG_GITHUB_CLIENT_ID to enable)'}`);
+    console.log('Press Ctrl+C to stop.');
+  });
+
+  process.on('SIGINT', () => {
+    server.close(() => process.exit(0));
+  });
+}
+
+async function route(request, response) {
+  const rawUrl = request.url || '/';
+  const pathname = decodeURIComponent(rawUrl.split('?')[0]);
+
+  if (pathname.startsWith('/api/')) {
+    const handled = await handleApi(request, response, pathname);
+    if (!handled) sendJson(response, 404, { error: 'not_found' });
+    return;
+  }
+
+  await serveStatic(request, response, pathname);
+}
+
+async function handleApi(request, response, pathname) {
+  if (pathname === '/api/health') {
+    sendJson(response, 200, { ok: true, oauthConfigured: Boolean(CLIENT_ID) });
+    return true;
+  }
+
+  if (pathname === '/api/github/device/code') {
+    if (request.method !== 'POST') {
+      sendJson(response, 405, { error: 'method_not_allowed' });
+      return true;
+    }
+    if (!CLIENT_ID) {
+      sendJson(response, 400, {
+        error: 'oauth_not_configured',
+        error_description: '未设置 OAG_GITHUB_CLIENT_ID，请使用 PAT 登录或配置 OAuth App。',
+      });
+      return true;
+    }
+    const body = await readJsonBody(request);
+    const scope = typeof body.scope === 'string' && body.scope.trim() ? body.scope.trim() : 'repo read:user';
+    const upstream = await fetch('https://github.com/login/device/code', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ client_id: CLIENT_ID, scope }),
+    });
+    sendJson(response, upstream.status, await upstream.json());
+    return true;
+  }
+
+  if (pathname === '/api/github/device/token') {
+    if (request.method !== 'POST') {
+      sendJson(response, 405, { error: 'method_not_allowed' });
+      return true;
+    }
+    if (!CLIENT_ID) {
+      sendJson(response, 400, { error: 'oauth_not_configured' });
+      return true;
+    }
+    const body = await readJsonBody(request);
+    if (!body.device_code) {
+      sendJson(response, 400, { error: 'invalid_request', error_description: 'missing device_code' });
+      return true;
+    }
+    const upstream = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({
+        client_id: CLIENT_ID,
+        device_code: body.device_code,
+        grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+      }),
+    });
+    sendJson(response, 200, await upstream.json());
+    return true;
+  }
+
+  return false;
+}
+
+async function serveStatic(request, response, pathname) {
+  let relativePath = pathname;
+  if (relativePath.endsWith('/')) relativePath += 'index.html';
+  if (relativePath === '') relativePath = '/index.html';
+
+  const normalized = path.normalize(relativePath).replace(/^([.][.][/\\])+/, '');
+  const filePath = path.join(PUBLIC_DIR, normalized.replace(/^[/\\]+/, ''));
+
+  if (!isPathInside(filePath, PUBLIC_DIR)) {
+    response.statusCode = 403;
+    response.end('Forbidden');
+    return;
+  }
+
+  let stat;
+  try {
+    stat = await fs.stat(filePath);
+  } catch {
+    response.statusCode = 404;
+    response.setHeader('content-type', 'text/plain; charset=utf-8');
+    response.end('Not Found');
+    return;
+  }
+
+  if (stat.isDirectory()) {
+    await streamFile(path.join(filePath, 'index.html'), response);
+    return;
+  }
+  await streamFile(filePath, response);
+}
+
+async function streamFile(filePath, response) {
+  const extension = path.extname(filePath).toLowerCase();
+  response.statusCode = 200;
+  response.setHeader('content-type', MIME_TYPES[extension] || 'application/octet-stream');
+  await new Promise((resolve, reject) => {
+    const stream = createReadStream(filePath);
+    stream.on('error', reject);
+    stream.on('end', resolve);
+    stream.pipe(response);
+  }).catch(() => {
+    response.statusCode = 404;
+    response.setHeader('content-type', 'text/plain; charset=utf-8');
+    response.end('Not Found');
+  });
+}
+
+function sendJson(response, statusCode, payload) {
+  if (response.headersSent) return;
+  const body = Buffer.from(`${JSON.stringify(payload)}\n`, 'utf8');
+  response.statusCode = statusCode;
+  response.setHeader('content-type', 'application/json; charset=utf-8');
+  response.setHeader('cache-control', 'no-store');
+  response.end(body);
+}
+
+function readJsonBody(request) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    request.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > MAX_BODY_BYTES) {
+        reject(new Error('request body too large'));
+        request.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    request.on('end', () => {
+      const raw = Buffer.concat(chunks).toString('utf8').trim();
+      if (!raw) {
+        resolve({});
+        return;
+      }
+      try {
+        resolve(JSON.parse(raw));
+      } catch {
+        reject(new Error('invalid JSON body'));
+      }
+    });
+    request.on('error', reject);
+  });
+}
+
+function parsePort(envPort) {
+  const fallback = 4173;
+  if (!envPort) return fallback;
+  const parsed = Number.parseInt(envPort, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 65535) {
+    throw new Error(`Invalid PORT: ${envPort}`);
+  }
+  return parsed;
+}
+
+async function runBuildScript() {
+  await new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [BUILD_SCRIPT], { cwd: REPO_ROOT, stdio: 'inherit' });
+    child.on('error', reject);
+    child.on('exit', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`build-pages-data exited with code ${code}`));
+    });
+  });
+}
+
+async function copyPagesToPublic() {
+  await fs.mkdir(PUBLIC_DIR, { recursive: true });
+  await fs.cp(PAGES_DIR, PUBLIC_DIR, { recursive: true, force: true });
+}
+
+function isPathInside(targetPath, parentPath) {
+  const relative = path.relative(parentPath, targetPath);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

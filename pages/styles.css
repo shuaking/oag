@@ -253,6 +253,18 @@ dd {
   gap: 0.48rem;
 }
 
+.admin-link {
+  color: var(--text-3);
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  transition: color 160ms ease;
+}
+
+.admin-link:hover {
+  color: var(--accent);
+}
+
 .language-switch {
   display: inline-flex;
   align-items: center;
@@ -501,6 +513,10 @@ dd {
   border-color: rgba(236, 72, 153, 0.3);
 }
 
+.stat-card-prompt {
+  border-color: rgba(129, 140, 248, 0.3);
+}
+
 .asset-stage {
   border-radius: var(--radius-lg);
   min-height: 620px;
@@ -632,6 +648,10 @@ dd {
 
 .type-chip.type-mcp {
   color: #f472b6;
+}
+
+.type-chip.type-prompt {
+  color: #818cf8;
 }
 
 .type-chip.type-other {

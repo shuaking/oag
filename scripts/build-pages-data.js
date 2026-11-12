@@ -11,6 +11,7 @@ const TYPE_DIRS = [
   { type: 'subagent', dir: 'subagents' },
   { type: 'skill', dir: 'skills' },
   { type: 'mcp', dir: 'mcp' },
+  { type: 'prompt', dir: 'prompts' },
 ];
 
 const MARKDOWN_PREVIEW_EXTENSIONS = new Set(['.md']);
@@ -68,6 +69,7 @@ async function main() {
     subagent: items.filter((item) => item.type === 'subagent').length,
     skill: items.filter((item) => item.type === 'skill').length,
     mcp: items.filter((item) => item.type === 'mcp').length,
+    prompt: items.filter((item) => item.type === 'prompt').length,
   };
 
   const payload = {

@@ -41,6 +41,7 @@
         </dl>
 
         <div class="header-actions">
+          <a class="admin-link" href="./admin.html">管理后台 ↗</a>
           <div class="language-switch" role="group" aria-label="Language">
             <button class="language-btn" type="button" data-language="zh-CN" aria-pressed="false">中文</button>
             <button class="language-btn" type="button" data-language="en" aria-pressed="true">English</button>
@@ -85,6 +86,10 @@
                 <span class="filter-text">MCP</span>
                 <span id="filterCountMcp" class="filter-count">0</span>
               </button>
+              <button class="filter-btn" type="button" data-type="prompt" aria-pressed="false">
+                <span class="filter-text">Prompt</span>
+                <span id="filterCountPrompt" class="filter-count">0</span>
+              </button>
             </div>
           </section>
 
@@ -110,6 +115,10 @@
               <article class="stat-card stat-card-mcp">
                 <p class="stat-label">MCP</p>
                 <p id="mcpStat" class="stat-value">0</p>
+              </article>
+              <article class="stat-card stat-card-prompt">
+                <p class="stat-label">Prompts</p>
+                <p id="promptStat" class="stat-value">0</p>
               </article>
             </div>
           </section>

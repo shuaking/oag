@@ -1,10 +1,10 @@
 # Registry Maintenance Guide (Adding Assets)
 
-> Scope: teams or individuals maintaining their own asset registry repository for `agent`, `subagent`, `skill`, `mcp` assets and plugins (`plugin`).
+> Scope: teams or individuals maintaining their own asset registry repository for `agent`, `subagent`, `skill`, `mcp`, and `prompt` assets and plugins (`plugin`).
 
 ## 1) Quick Flow
 
-1. Create type roots in your registry repo (`agents/`, `skills/`, `mcp/`).
+1. Create type roots in your registry repo (`agents/`, `subagents/`, `skills/`, `mcp/`, `prompts/`).
 2. Create an asset directory and `asset.json`.
 3. Add asset files (for example `AGENT.md`, `SKILL.md`, `mcp.json`).
 4. Add `plugins/*.json` as needed (for bundled installs).
@@ -13,13 +13,13 @@
 
 ## 2) Repository Boundaries
 
-- **Registry repository (you maintain):** stores asset source files, `asset.json` manifests, and plugins (`plugins/*.json`) such as `agents/*`, `skills/*`, `mcp/*`, and `plugins/*`.
+- **Registry repository (you maintain):** stores asset source files, `asset.json` manifests, and plugins (`plugins/*.json`) such as `agents/*`, `subagents/*`, `skills/*`, `mcp/*`, `prompts/*`, and `plugins/*`.
 - **Consumer project:** runs `oag` commands to install assets; it does not own registry structure.
 - **oag tool repository:** contains CLI source code; it is separate from your registry repository.
 
 ## 3) Fixed Directory Structure (Current `oag` Discovery Rules)
 
-Current `oag` discovery loads three asset roots and one plugin root:
+Current `oag` discovery loads five asset roots and one plugin root:
 
 ```text
 agents/
@@ -44,6 +44,11 @@ mcp/
     asset.json
     mcp.json
 
+prompts/
+  <asset-name>/
+    asset.json
+    PROMPT.md
+
 plugins/
   <plugin-name>.json
 ```
@@ -60,7 +65,7 @@ Naming recommendations:
 | Field | Required | Description |
 | --- | --- | --- |
 | `name` | Recommended | Asset name; falls back to folder name if omitted. |
-| `type` | Recommended | `agent`, `subagent`, `skill`, or `mcp`. |
+| `type` | Recommended | `agent`, `subagent`, `skill`, `mcp`, or `prompt`. |
 | `description` | No | Optional description. |
 | `tools` | No | `claude`, `codex`, and/or `opencode`; empty means unrestricted. |
 | `files` | Yes | File list; each entry must include `source`. |
@@ -204,6 +209,31 @@ MCP notes:
 
 - MCP assets must provide exactly one usable JSON config file (recommended: `mcp.json`).
 - For Codex and OpenCode, `sse` servers are not supported; use `stdio` or `http`.
+
+### 5.5 Prompt
+
+```text
+prompts/my-prompt/
+  asset.json
+  PROMPT.md
+```
+
+```json
+{
+  "name": "my-prompt",
+  "type": "prompt",
+  "description": "Reusable review prompt",
+  "tools": ["claude", "codex", "opencode"],
+  "files": [
+    { "source": "PROMPT.md" }
+  ]
+}
+```
+
+Prompt notes:
+
+- A prompt asset is a single Markdown file (`PROMPT.md`) installed to `<tool>/prompts/<name>.md` for each compatible tool.
+- Because the prompt mapping is a flat, asset-named target, a prompt asset must contain exactly one file.
 
 ## 6) Add Plugins (`plugins`)
 

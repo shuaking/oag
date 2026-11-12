@@ -1,10 +1,10 @@
 # 资产仓库维护指南（新增资产）
 
-> 适用范围：维护你自己的资产 registry 仓库（`agent` / `subagent` / `skill` / `mcp`）及插件（`plugin`）的团队或个人。
+> 适用范围：维护你自己的资产 registry 仓库（`agent` / `subagent` / `skill` / `mcp` / `prompt`）及插件（`plugin`）的团队或个人。
 
 ## 1) 快速流程
 
-1. 在你的资产仓库中按类型创建目录（`agents/`、`skills/`、`mcp/`）。
+1. 在你的资产仓库中按类型创建目录（`agents/`、`subagents/`、`skills/`、`mcp/`、`prompts/`）。
 2. 新建资产子目录与 `asset.json`。
 3. 添加资产文件（如 `AGENT.md`、`SKILL.md`、`mcp.json`）。
 4. 按需新增 `plugins/*.json`（用于批量安装）。
@@ -13,13 +13,13 @@
 
 ## 2) 仓库边界说明
 
-- **资产仓库（你维护）**：存放资产内容、`asset.json` 与插件（`plugins/*.json`），例如 `agents/*`、`skills/*`、`mcp/*`、`plugins/*`。
+- **资产仓库（你维护）**：存放资产内容、`asset.json` 与插件（`plugins/*.json`），例如 `agents/*`、`subagents/*`、`skills/*`、`mcp/*`、`prompts/*`、`plugins/*`。
 - **使用方项目（业务项目）**：执行 `oag` 命令安装资产，不直接维护 registry 文件结构。
 - **oag 工具仓库**：CLI 代码仓库，与资产仓库分离；本指南关注的是资产仓库维护。
 
 ## 3) 固定目录结构（当前 oag 识别规则）
 
-当前 `oag` 会发现并加载三类资产目录与一类插件目录：
+当前 `oag` 会发现并加载五类资产目录与一类插件目录：
 
 ```text
 agents/
@@ -44,6 +44,11 @@ mcp/
     asset.json
     mcp.json
 
+prompts/
+  <asset-name>/
+    asset.json
+    PROMPT.md
+
 plugins/
   <plugin-name>.json
 ```
@@ -60,7 +65,7 @@ plugins/
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
 | `name` | 建议填写 | 资产名；未填写时回退到目录名。 |
-| `type` | 建议填写 | `agent`、`subagent`、`skill`、`mcp`。 |
+| `type` | 建议填写 | `agent`、`subagent`、`skill`、`mcp`、`prompt`。 |
 | `description` | 否 | 资产描述。 |
 | `tools` | 否 | `claude`、`codex`、`opencode`；留空表示不限制。 |
 | `files` | 是 | 文件列表；每项必须包含 `source`。 |
@@ -204,6 +209,31 @@ MCP 注意事项：
 
 - MCP 资产必须有且仅有一个可用 JSON 配置文件（推荐 `mcp.json`）。
 - 对 Codex 与 OpenCode，`sse` 类型不受支持，请使用 `stdio` 或 `http`。
+
+### 5.5 Prompt（提示词）
+
+```text
+prompts/my-prompt/
+  asset.json
+  PROMPT.md
+```
+
+```json
+{
+  "name": "my-prompt",
+  "type": "prompt",
+  "description": "可复用的代码审查提示词",
+  "tools": ["claude", "codex", "opencode"],
+  "files": [
+    { "source": "PROMPT.md" }
+  ]
+}
+```
+
+Prompt 注意事项：
+
+- 一个 prompt 资产是单个 Markdown 文件（`PROMPT.md`），会安装到每个兼容工具的 `<tool>/prompts/<name>.md`。
+- 由于 prompt 使用扁平、按资产命名的目标路径，一个 prompt 资产必须只包含一个文件。
 
 ## 6) 新增插件（plugins）
 

@@ -7,6 +7,7 @@
 - [英文 README](README.md)
 - [资产仓库维护指南（中文）](docs/add-asset.zh.md)
 - [资产仓库维护指南（英文）](docs/add-asset.en.md)
+- [管理后台使用指南](docs/admin.md)
 
 ## oag 能做什么
 
@@ -17,6 +18,8 @@
 - 通过 `copy` 或 `symlink` 模式安装文件。
 - 按项目记录已安装项，便于后续重复更新。
 - 处理 Claude、Codex 与 OpenCode 的 MCP 资产配置格式。
+- 管理 `agent`、`subagent`、`skill`、`mcp`、`prompt` 五类资产。
+- 内置浏览器**管理后台**（GitHub 登录），可新增 / 删除资产。
 
 ## 核心特性
 
@@ -107,6 +110,23 @@ oag --help
    oag update
    ```
 
+## 管理后台（GitHub 登录）
+
+注册表自带一个浏览器管理后台：`pages/admin.html`（GitHub Pages 发布后路径为 `/admin.html`），可用表单新增 / 删除 `agent`、`subagent`、`skill`、`mcp`、`prompt` 各类资产。每次操作都会通过 GitHub API 直接提交到仓库（一次操作一次原子提交），随后 Pages 工作流会自动重建展示数据。
+
+登录有两种方式：
+
+- **个人访问令牌（PAT）**：任意环境可用（包括纯静态的 GitHub Pages 站点）。使用对本仓库有 **Contents: Read and write** 权限的细粒度令牌（或带 `repo` 的经典令牌）。
+- **OAuth 设备码登录**：标准的「Sign in with GitHub」流程。由于 GitHub 的 OAuth 端点会拦截浏览器 CORS，需要一个同源后台代理：
+
+  ```bash
+  # 1) 创建一个 OAuth App 并勾选 Enable Device Flow，复制 Client ID。
+  # 2) 携带 Client ID 启动后台：
+  OAG_GITHUB_CLIENT_ID=<client-id> npm run admin   # http://127.0.0.1:4173/admin.html
+  ```
+
+安装、字段与安全说明详见 [docs/admin.md](docs/admin.md)。
+
 ## 命令
 
 ### `oag remote add <url> [branch]`
@@ -125,7 +145,7 @@ oag remote add https://github.com/<you>/<your-registry>.git main
 
 选项：
 
-- `--type <type>`：按类型过滤（如 `agent`、`skill`、`mcp`）
+- `--type <type>`：按类型过滤（如 `agent`、`skill`、`mcp`、`prompt`）
 - `--tool <name>`：按工具兼容性过滤（仅用于显示过滤）
 
 示例：
@@ -185,6 +205,7 @@ oag update
 - `subagent` -> `.claude/agents/<name>.md`
 - `skill` -> `.claude/skills/`
 - `mcp` -> `.mcp.json`
+- `prompt` -> `.claude/prompts/<name>.md`
 
 **Codex**
 
@@ -192,6 +213,7 @@ oag update
 - `subagent` -> `.codex/agents/<name>.toml`（由 Markdown 转换）
 - `skill` -> `.codex/skills/`
 - `mcp` -> `.codex/config.toml`
+- `prompt` -> `.codex/prompts/<name>.md`
 
 **OpenCode**
 
@@ -199,6 +221,7 @@ oag update
 - `subagent` -> `.opencode/agents/<name>.md`
 - `skill` -> `.opencode/skills/`
 - `mcp` -> `opencode.json`
+- `prompt` -> `.opencode/prompts/<name>.md`
 
 ### 3) 项目状态
 
@@ -268,8 +291,6 @@ oag update
   - 先执行 `oag remote add <url> [branch]`。
 - **错误：`Type 'hook' has been removed and is no longer supported.`**
   - `hook` 已弃用，不能再作为新类型进行列出或安装。
-- **错误：`Type 'prompt' has been removed and is no longer supported.`**
-  - `prompt` 已弃用，不能再作为新类型进行列出或安装。
 - **错误：`Invalid mode '<mode>'. Use symlink or copy.`**
   - 请选择 `--mode copy` 或 `--mode symlink`。
 - **某插件在 `oag install` 中显示为 `(unavailable: ...)` 且无法勾选。**

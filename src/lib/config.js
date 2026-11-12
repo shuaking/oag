@@ -12,6 +12,7 @@ const DEFAULT_TOOLS = {
       subagent: '.claude/agents/{name}.md',
       skill: '.claude/skills/',
       mcp: '.mcp.json',
+      prompt: '.claude/prompts/{name}.md',
     },
     settingsPath: '.claude/settings.json',
   },
@@ -21,6 +22,7 @@ const DEFAULT_TOOLS = {
       subagent: '.codex/agents/{name}.toml',
       skill: '.codex/skills/',
       mcp: '.codex/config.toml',
+      prompt: '.codex/prompts/{name}.md',
     },
   },
   opencode: {
@@ -29,6 +31,7 @@ const DEFAULT_TOOLS = {
       subagent: '.opencode/agents/{name}.md',
       skill: '.opencode/skills/',
       mcp: 'opencode.json',
+      prompt: '.opencode/prompts/{name}.md',
     },
   },
 };

@@ -7,6 +7,7 @@
 - [Chinese README](README.zh.md)
 - [Registry Maintenance Guide (English)](docs/add-asset.en.md)
 - [Registry Maintenance Guide (Chinese)](docs/add-asset.zh.md)
+- [Admin Console Guide (Chinese)](docs/admin.md)
 
 ## What oag does
 
@@ -17,6 +18,8 @@
 - Installs files using `copy` or `symlink` mode.
 - Tracks installed items per project so updates are repeatable.
 - Handles MCP assets for Claude, Codex, and OpenCode config formats.
+- Manages `agent`, `subagent`, `skill`, `mcp`, and `prompt` assets.
+- Ships a browser-based **admin console** (GitHub login) to add and delete assets.
 
 ## Key features
 
@@ -107,6 +110,23 @@ Notes:
    oag update
    ```
 
+## Admin console (GitHub login)
+
+The registry ships with a browser admin console at `pages/admin.html` (published as `/admin.html` by the Pages workflow) for adding and deleting assets of every type (`agent`, `subagent`, `skill`, `mcp`, `prompt`) from a form. Every change is committed straight to the repository through the GitHub API (one atomic commit per action), so the Pages data is rebuilt automatically.
+
+Login uses GitHub in one of two ways:
+
+- **Personal access token (PAT)** — works anywhere, including the static GitHub Pages site. Use a fine-grained token with **Contents: Read and write** on this repository (or a classic token with `repo`).
+- **OAuth Device Flow** — a real "Sign in with GitHub" flow. Because GitHub's OAuth endpoints reject browser CORS, it needs the bundled backend proxy:
+
+  ```bash
+  # 1) Create an OAuth App and enable "Device Flow"; copy its Client ID.
+  # 2) Start the admin backend with that Client ID:
+  OAG_GITHUB_CLIENT_ID=<client-id> npm run admin   # http://127.0.0.1:4173/admin.html
+  ```
+
+See [docs/admin.md](docs/admin.md) for setup, fields, and security notes.
+
 ## Commands
 
 ### `oag remote add <url> [branch]`
@@ -125,7 +145,7 @@ List assets from the synced registry.
 
 Options:
 
-- `--type <type>`: filter by type (for example `agent`, `skill`, `mcp`)
+- `--type <type>`: filter by type (for example `agent`, `skill`, `mcp`, `prompt`)
 - `--tool <name>`: filter by tool compatibility hint (display filter only)
 
 Example:
@@ -185,6 +205,7 @@ Before `list`, `install`, and `update`, `oag` syncs your configured registry:
 - `subagent` -> `.claude/agents/<name>.md`
 - `skill` -> `.claude/skills/`
 - `mcp` -> `.mcp.json`
+- `prompt` -> `.claude/prompts/<name>.md`
 
 **Codex**
 
@@ -192,6 +213,7 @@ Before `list`, `install`, and `update`, `oag` syncs your configured registry:
 - `subagent` -> `.codex/agents/<name>.toml` (converted from Markdown)
 - `skill` -> `.codex/skills/`
 - `mcp` -> `.codex/config.toml`
+- `prompt` -> `.codex/prompts/<name>.md`
 
 **OpenCode**
 
@@ -199,6 +221,7 @@ Before `list`, `install`, and `update`, `oag` syncs your configured registry:
 - `subagent` -> `.opencode/agents/<name>.md`
 - `skill` -> `.opencode/skills/`
 - `mcp` -> `opencode.json`
+- `prompt` -> `.opencode/prompts/<name>.md`
 
 ### 3) Project state
 
@@ -275,8 +298,6 @@ and `description`) and the system prompt as the body:
   - Run `oag remote add <url> [branch]` first.
 - **Error: `Type 'hook' has been removed and is no longer supported.`**
   - `hook` is deprecated and cannot be listed/installed as a new type.
-- **Error: `Type 'prompt' has been removed and is no longer supported.`**
-  - `prompt` is deprecated and cannot be listed/installed as a new type.
 - **Error: `Invalid mode '<mode>'. Use symlink or copy.`**
   - Choose `--mode copy` or `--mode symlink`.
 - **A plugin shows as `(unavailable: ...)` and cannot be checked in `oag install`.**

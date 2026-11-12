@@ -8,11 +8,11 @@
     language: resolveInitialLanguage(),
     assets: [],
     filteredAssets: [],
-    filterCounts: { all: 0, agent: 0, subagent: 0, skill: 0, mcp: 0 },
+    filterCounts: { all: 0, agent: 0, subagent: 0, skill: 0, mcp: 0, prompt: 0 },
     query: '',
     queryRaw: '',
     activeType: 'all',
-    baseCounts: { total: 0, agent: 0, subagent: 0, skill: 0, mcp: 0 },
+    baseCounts: { total: 0, agent: 0, subagent: 0, skill: 0, mcp: 0, prompt: 0 },
     loadError: '',
     loadErrorDetail: '',
     selectedAssetId: '',
@@ -32,11 +32,13 @@
     filterCountSubagent: document.getElementById('filterCountSubagent'),
     filterCountSkill: document.getElementById('filterCountSkill'),
     filterCountMcp: document.getElementById('filterCountMcp'),
+    filterCountPrompt: document.getElementById('filterCountPrompt'),
     totalStat: document.getElementById('totalStat'),
     agentStat: document.getElementById('agentStat'),
     subagentStat: document.getElementById('subagentStat'),
     skillStat: document.getElementById('skillStat'),
     mcpStat: document.getElementById('mcpStat'),
+    promptStat: document.getElementById('promptStat'),
     resultSummary: document.getElementById('resultSummary'),
     searchInput: document.getElementById('searchInput'),
     filterButtons: Array.from(document.querySelectorAll('.filter-btn')),
@@ -77,8 +79,8 @@
       searchAssets: 'Search assets', searchPlaceholder: 'name, description, tool, directory, file',
       searchHint: 'Search updates instantly across all indexed fields. Press / to focus, Esc to reset.',
       assetTypeFilter: 'Asset type filter', typeFilter: 'Type filter', assetCounts: 'Asset counts', registryStats: 'Registry stats',
-      all: 'All', agent: 'Agent', subagent: 'Subagent', skill: 'Skill', mcp: 'MCP',
-      total: 'Total', agents: 'Agents', subagents: 'Subagents', skills: 'Skills',
+      all: 'All', agent: 'Agent', subagent: 'Subagent', skill: 'Skill', mcp: 'MCP', prompt: 'Prompt',
+      total: 'Total', agents: 'Agents', subagents: 'Subagents', skills: 'Skills', prompts: 'Prompts',
       assetGallery: 'Asset Gallery', registryAssets: 'Registry Assets',
       noAssetsFound: 'No assets found', emptyHint: 'Try another keyword or reset the active filters.',
       assetDetail: 'Asset Detail', closePanel: 'Close panel', assetMetadata: 'Asset metadata', directory: 'Directory',
@@ -105,8 +107,8 @@
       workspace: '资产控制台工作区', filtersAndStats: '筛选与统计', searchAssets: '搜索资产',
       searchPlaceholder: '名称、描述、工具、目录或文件', searchHint: '输入后立即搜索全部索引字段。按 / 聚焦搜索，按 Esc 重置。',
       assetTypeFilter: '资产类型筛选', typeFilter: '类型筛选', assetCounts: '资产数量', registryStats: '注册中心统计',
-      all: '全部', agent: '智能体', subagent: '子智能体', skill: '技能', mcp: 'MCP',
-      total: '总数', agents: '智能体', subagents: '子智能体', skills: '技能',
+      all: '全部', agent: '智能体', subagent: '子智能体', skill: '技能', mcp: 'MCP', prompt: '提示词',
+      total: '总数', agents: '智能体', subagents: '子智能体', skills: '技能', prompts: '提示词',
       assetGallery: '资产画廊', registryAssets: '注册中心资产', noAssetsFound: '未找到资产',
       emptyHint: '请尝试其他关键词或重置当前筛选条件。', assetDetail: '资产详情', closePanel: '关闭面板',
       assetMetadata: '资产元数据', directory: '目录', tools: '工具', description: '描述',
@@ -322,8 +324,10 @@
       ['.filter-panel .panel-label', 'typeFilter'], ['.filter-btn[data-type="all"] .filter-text', 'all'],
       ['.filter-btn[data-type="agent"] .filter-text', 'agent'], ['.filter-btn[data-type="subagent"] .filter-text', 'subagent'],
       ['.filter-btn[data-type="skill"] .filter-text', 'skill'], ['.filter-btn[data-type="mcp"] .filter-text', 'mcp'],
+      ['.filter-btn[data-type="prompt"] .filter-text', 'prompt'],
       ['.stats-panel .panel-label', 'registryStats'], ['.stat-card-total .stat-label', 'total'], ['.stat-card-agent .stat-label', 'agents'],
       ['.stat-card-subagent .stat-label', 'subagents'], ['.stat-card-skill .stat-label', 'skills'], ['.stat-card-mcp .stat-label', 'mcp'],
+      ['.stat-card-prompt .stat-label', 'prompts'],
       ['.asset-stage-head .eyebrow', 'assetGallery'], ['.asset-stage-head h2', 'registryAssets'], ['#emptyResetBtn', 'resetFilters'],
       ['.detail-head .eyebrow', 'assetDetail'], ['#closeDetailBtn', 'closePanel'],
       ['.detail-meta .meta-item:nth-child(2) .meta-label', 'directory'], ['.detail-meta .meta-item:nth-child(3) .meta-label', 'tools'],
@@ -450,6 +454,7 @@
       subagent: assets.filter((item) => item.type === 'subagent').length,
       skill: assets.filter((item) => item.type === 'skill').length,
       mcp: assets.filter((item) => item.type === 'mcp').length,
+      prompt: assets.filter((item) => item.type === 'prompt').length,
     };
 
     if (!rawCounts || typeof rawCounts !== 'object') {
@@ -462,6 +467,7 @@
       subagent: toSafeNumber(rawCounts.subagent, fallback.subagent),
       skill: toSafeNumber(rawCounts.skill, fallback.skill),
       mcp: toSafeNumber(rawCounts.mcp, fallback.mcp),
+      prompt: toSafeNumber(rawCounts.prompt, fallback.prompt),
     };
   }
 
@@ -485,6 +491,7 @@
       subagent: items.filter((item) => item.type === 'subagent').length,
       skill: items.filter((item) => item.type === 'skill').length,
       mcp: items.filter((item) => item.type === 'mcp').length,
+      prompt: items.filter((item) => item.type === 'prompt').length,
     };
   }
 
@@ -541,6 +548,7 @@
     elements.subagentStat.textContent = formatCount(state.baseCounts.subagent || 0);
     elements.skillStat.textContent = formatCount(state.baseCounts.skill || 0);
     elements.mcpStat.textContent = formatCount(state.baseCounts.mcp || 0);
+    elements.promptStat.textContent = formatCount(state.baseCounts.prompt || 0);
   }
 
   function renderVisibleCount() {
@@ -562,6 +570,9 @@
     }
     if (elements.filterCountMcp) {
       elements.filterCountMcp.textContent = formatCount(state.filterCounts.mcp || 0);
+    }
+    if (elements.filterCountPrompt) {
+      elements.filterCountPrompt.textContent = formatCount(state.filterCounts.prompt || 0);
     }
   }
 
@@ -1302,6 +1313,9 @@
     }
     if (type === 'mcp') {
       return 'type-mcp';
+    }
+    if (type === 'prompt') {
+      return 'type-prompt';
     }
     return 'type-other';
   }

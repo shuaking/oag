@@ -26,14 +26,16 @@
     "start": "node bin/oag.js",
     "build:pages:data": "node scripts/build-pages-data.js",
     "test": "node --test",
-    "preview:pages": "node scripts/preview-pages.js"
+    "preview:pages": "node scripts/preview-pages.js",
+    "admin": "node scripts/admin-server.js"
   },
   "publishConfig": {
     "access": "public"
   },
   "dependencies": {
+    "@iarna/toml": "^3.0.0",
     "commander": "^11.1.0",
     "inquirer": "^8.2.6",
-    "@iarna/toml": "^3.0.0"
+    "ws": "^8.22.1"
   }
 }
