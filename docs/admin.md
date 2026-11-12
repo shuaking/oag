@@ -80,10 +80,27 @@
 
 - PAT / OAuth 令牌只存在于浏览器会话（`sessionStorage`），不会提交到仓库。
 - 后台不包含任何服务端密钥；`admin-server.js` 仅读取 `OAG_GITHUB_CLIENT_ID` 并转发设备码请求。
+- 通过 `npm run admin` 运行时，浏览器对 GitHub API 的请求会经本地后台的 `/api/github/proxy` 转发（令牌按请求头透传、服务端不落盘），可绕开浏览器 CORS/网络拦截。
 - 建议使用**细粒度、仅限本仓库、Contents 读写**的令牌，最小化权限。
 - 所有写入都可追溯：每次新增/删除都是一次独立提交，可在 GitHub 提交历史中审计。
 
-## 5. 环境变量
+## 5. 故障排查
+
+### 读取失败：Failed to fetch
+
+浏览器无法直连 `https://api.github.com`（网络/代理拦截、隐私插件、内嵌浏览器限制等）。处理方式：
+
+1. 改用后台服务运行：`npm run admin`，然后访问它打开的 `http://127.0.0.1:4173/admin.html`。
+   - 此时后台会通过 `/api/github/proxy` 代理所有 GitHub API 请求，避开浏览器直连问题。
+2. 确认能访问 `https://api.github.com`（例如浏览器打开该地址应返回 JSON）。
+3. 仍然失败时检查是否有公司代理/防火墙拦截 `api.github.com`。
+
+### 浏览器拦截弹窗 / 打不开 GitHub 令牌页
+
+- 左侧常驻「GitHub 令牌创建页 ↗」链接与「复制链接」按钮，可手动打开。
+- 用 `npm run admin` 运行时，点「打开 GitHub 创建令牌」会由后台唤起系统默认浏览器。
+
+## 6. 环境变量
 
 | 变量 | 用途 | 默认值 |
 | --- | --- | --- |

@@ -294,33 +294,80 @@
 
   /* ---------------- GitHub API ---------------- */
 
-  async function gh(path, { method = 'GET', body, accept } = {}) {
-    const headers = {
-      Accept: accept || 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-    };
-    if (state.token) headers.Authorization = `Bearer ${state.token}`;
-    const res = await fetch(`https://api.github.com${path}`, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    const data = await safeJson(res);
-    if (!res.ok) {
-      const message = (data && data.message) || res.statusText || `HTTP ${res.status}`;
-      throw new Error(`GitHub ${res.status}: ${message}`);
+  // All GitHub API traffic goes through this helper. When the admin server is
+  // backing the page, requests are proxied by it (Node -> api.github.com), which
+  // avoids browser CORS / network restrictions that surface as "Failed to fetch".
+  async function githubFetch(path, { method = 'GET', body, accept, parse = true } = {}) {
+    const effectiveAccept = accept || 'application/vnd.github+json';
+    let status;
+    let text;
+
+    if (state.serverMode) {
+      let res;
+      try {
+        res = await fetch('/api/github/proxy', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-gh-token': state.token || '' },
+          body: JSON.stringify({ path, method, body, accept: effectiveAccept }),
+        });
+      } catch (error) {
+        throw networkError(error);
+      }
+      if (!res.ok) {
+        const detail = await res.text();
+        throw new Error(`本地后台代理请求失败（HTTP ${res.status}）：${detail || '请确认 npm run admin 正在运行'}`);
+      }
+      const payload = await safeJson(res);
+      status = Number(payload.status) || 0;
+      text = typeof payload.body === 'string' ? payload.body : '';
+    } else {
+      const headers = { Accept: effectiveAccept, 'X-GitHub-Api-Version': '2022-11-28' };
+      if (state.token) headers.Authorization = `Bearer ${state.token}`;
+      let res;
+      try {
+        res = await fetch(`https://api.github.com${path}`, {
+          method,
+          headers,
+          body: body ? JSON.stringify(body) : undefined,
+        });
+      } catch (error) {
+        throw networkError(error);
+      }
+      status = res.status;
+      text = await res.text();
     }
-    return data;
+
+    let data = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
+    }
+
+    if (status >= 400) {
+      const message = (data && data.message) || `HTTP ${status}`;
+      throw new Error(`GitHub ${status}: ${message}`);
+    }
+    return parse ? data : text;
   }
 
-  async function ghRaw(path) {
-    const headers = { Accept: 'application/vnd.github.raw+json', 'X-GitHub-Api-Version': '2022-11-28' };
-    if (state.token) headers.Authorization = `Bearer ${state.token}`;
-    const res = await fetch(`https://api.github.com${path}`, { headers });
-    if (!res.ok) {
-      throw new Error(`GitHub ${res.status}`);
+  function gh(path, options = {}) {
+    return githubFetch(path, options);
+  }
+
+  function ghRaw(path) {
+    return githubFetch(path, { accept: 'application/vnd.github.raw+json', parse: false });
+  }
+
+  function networkError(cause) {
+    const detail = cause && cause.message ? cause.message : String(cause);
+    if (state.serverMode) {
+      return new Error(`无法通过本地后台访问 GitHub API（${detail}）。请检查网络/代理后重试。`);
     }
-    return res.text();
+    return new Error(
+      `浏览器无法直连 GitHub API（Failed to fetch：${detail}）。常见原因：网络/代理拦截、隐私插件或内嵌浏览器限制。` +
+        '请改用 `npm run admin` 启动后台，它会由本地服务器代理 GitHub API，避免浏览器直连失败。',
+    );
   }
 
   function encodePath(pathValue) {

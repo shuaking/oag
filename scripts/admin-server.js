@@ -158,6 +158,41 @@ async function handleApi(request, response, pathname) {
     return true;
   }
 
+  if (pathname === '/api/github/proxy') {
+    if (request.method !== 'POST') {
+      sendJson(response, 405, { error: 'method_not_allowed' });
+      return true;
+    }
+    const token = String(request.headers['x-gh-token'] || '').trim();
+    const body = await readJsonBody(request);
+    const apiPath = typeof body.path === 'string' ? body.path.trim() : '';
+    if (!apiPath.startsWith('/')) {
+      sendJson(response, 400, { error: 'invalid_path', error_description: 'path must start with /' });
+      return true;
+    }
+    const method = String(body.method || 'GET').toUpperCase();
+    const accept = typeof body.accept === 'string' && body.accept ? body.accept : 'application/vnd.github+json';
+    const headers = {
+      accept,
+      'x-github-api-version': '2022-11-28',
+      'user-agent': 'oag-admin-server',
+    };
+    if (token) headers.authorization = `Bearer ${token}`;
+    let payload;
+    if (body.body !== undefined && body.body !== null) {
+      headers['content-type'] = 'application/json';
+      payload = JSON.stringify(body.body);
+    }
+    try {
+      const upstream = await fetch(`https://api.github.com${apiPath}`, { method, headers, body: payload });
+      const text = await upstream.text();
+      sendJson(response, 200, { status: upstream.status, body: text });
+    } catch (error) {
+      sendJson(response, 502, { error: 'upstream_failed', error_description: error.message });
+    }
+    return true;
+  }
+
   if (pathname === '/api/open-external') {
     if (request.method !== 'POST') {
       sendJson(response, 405, { error: 'method_not_allowed' });
