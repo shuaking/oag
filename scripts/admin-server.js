@@ -12,8 +12,9 @@
  * Env:
  *   OAG_GITHUB_CLIENT_ID  OAuth App client id (device flow enabled). Optional:
  *                         without it the admin still works with a PAT.
- *   PORT                  default 4173
+ *   PORT                  default 4180
  *   HOST                  default 127.0.0.1
+ *   OAG_NO_OPEN           set to 1 to skip opening the browser on start
  */
 
 const fs = require('fs/promises');
@@ -64,7 +65,14 @@ async function main() {
   });
 
   server.on('error', (error) => {
-    console.error(`Failed to start admin server: ${error.message}`);
+    if (error && error.code === 'EADDRINUSE') {
+      console.error(
+        `端口 ${port} 已被占用（可能 preview:pages 或另一个 admin 实例在运行）。` +
+          '请关闭占用进程，或用 PORT=4181 npm run admin 换一个端口。',
+      );
+    } else {
+      console.error(`Failed to start admin server: ${error.message}`);
+    }
     process.exitCode = 1;
   });
 
@@ -74,6 +82,7 @@ async function main() {
     const adminUrl = `http://${host}:${actualPort}/admin.html`;
     console.log(`OAG admin console: ${adminUrl}`);
     console.log(`OAuth device flow: ${CLIENT_ID ? 'enabled' : 'disabled (set OAG_GITHUB_CLIENT_ID to enable)'}`);
+    console.log('GitHub API proxy: enabled at /api/github/proxy (browser never calls api.github.com directly)');
     console.log('Press Ctrl+C to stop.');
     if (process.env.OAG_NO_OPEN !== '1') {
       try {
@@ -329,7 +338,7 @@ function readJsonBody(request) {
 }
 
 function parsePort(envPort) {
-  const fallback = 4173;
+  const fallback = 4180;
   if (!envPort) return fallback;
   const parsed = Number.parseInt(envPort, 10);
   if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 65535) {

@@ -34,7 +34,7 @@
    # Windows PowerShell
    $env:OAG_GITHUB_CLIENT_ID="你的 Client ID"
    npm run admin
-   # 默认打开 http://127.0.0.1:4173/admin.html
+   # 默认打开 http://127.0.0.1:4180/admin.html
    ```
 
    ```bash
@@ -90,7 +90,7 @@
 
 浏览器无法直连 `https://api.github.com`（网络/代理拦截、隐私插件、内嵌浏览器限制等）。处理方式：
 
-1. 改用后台服务运行：`npm run admin`，然后访问它打开的 `http://127.0.0.1:4173/admin.html`。
+1. 改用后台服务运行：`npm run admin`，然后访问它打开的 `http://127.0.0.1:4180/admin.html`。
    - 此时后台会通过 `/api/github/proxy` 代理所有 GitHub API 请求，避开浏览器直连问题。
 2. 确认能访问 `https://api.github.com`（例如浏览器打开该地址应返回 JSON）。
 3. 仍然失败时检查是否有公司代理/防火墙拦截 `api.github.com`。
@@ -105,6 +105,6 @@
 | 变量 | 用途 | 默认值 |
 | --- | --- | --- |
 | `OAG_GITHUB_CLIENT_ID` | 启用 OAuth 设备码登录 | 空（仅 PAT） |
-| `PORT` | 后台服务端口 | `4173` |
+| `PORT` | 后台服务端口 | `4180` |
 | `HOST` | 后台服务监听地址 | `127.0.0.1` |
 | `OAG_NO_OPEN` | 设为 `1` 时启动后台不自动打开浏览器 | 空（自动打开） |

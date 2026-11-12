@@ -122,7 +122,7 @@ oag --help
   ```bash
   # 1) 创建一个 OAuth App 并勾选 Enable Device Flow，复制 Client ID。
   # 2) 携带 Client ID 启动后台：
-  OAG_GITHUB_CLIENT_ID=<client-id> npm run admin   # 自动打开 http://127.0.0.1:4173/admin.html
+  OAG_GITHUB_CLIENT_ID=<client-id> npm run admin   # 自动打开 http://127.0.0.1:4180/admin.html
   ```
 
 `npm run admin` 会启动后台并在默认浏览器打开后台页面（设 `OAG_NO_OPEN=1` 可关闭自动打开）。用令牌登录时，令牌框为空（或点「在本机浏览器打开 GitHub」）会在本机浏览器打开 GitHub 令牌页。

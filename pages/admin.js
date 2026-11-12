@@ -52,6 +52,9 @@
       }
     }
     updateAuthUi();
+    if (!state.serverMode && !state.user) {
+      setStatus('静态模式：浏览器将直连 GitHub API。若登录/读取报 Failed to fetch，请改用 npm run admin（默认 http://127.0.0.1:4180/admin.html）。');
+    }
   }
 
   function cacheElements() {
@@ -59,7 +62,7 @@
       'hostBadge', 'topDeviceLoginBtn', 'userChip', 'userAvatar', 'userName', 'logoutBtn',
       'ownerInput', 'repoInput', 'branchInput', 'repoHint',
       'patBox', 'patInput', 'patLoginBtn', 'openGitHubBtn', 'tokenUrlLink', 'copyTokenUrlBtn', 'deviceBox', 'deviceLoginBtn',
-      'statusLog', 'headInfo',
+      'statusLog', 'headInfo', 'modeHint', 'diagBtn',
       'assetTotal', 'typeFilters', 'refreshBtn', 'loginGate', 'assetLoading', 'assetList',
       'createGate', 'createForm', 'typeSelect', 'nameInput', 'descInput', 'toolToggles',
       'mainFileName', 'mainFileHint', 'mainContent', 'addExtraBtn', 'extraFiles',
@@ -126,6 +129,7 @@
 
     el.logoutBtn.addEventListener('click', logout);
     el.refreshBtn.addEventListener('click', () => reloadAssets().catch(onActionError));
+    el.diagBtn.addEventListener('click', () => { runDiagnostics().catch((error) => setStatus(`诊断失败：${error.message}`, 'error')); });
 
     [el.ownerInput, el.repoInput, el.branchInput].forEach((input) => {
       input.addEventListener('change', saveRepoFromInputs);
@@ -206,6 +210,38 @@
       state.serverOauth = false;
     }
     updateAuthUi();
+  }
+
+  async function runDiagnostics() {
+    const lines = [];
+    lines.push(`页面：${window.location.href}`);
+    lines.push(`来源：${window.location.origin}`);
+    try {
+      const res = await fetch('/api/health', { cache: 'no-store' });
+      if (res.ok) {
+        let data = null;
+        try { data = await res.clone().json(); } catch { data = null; }
+        if (data && data.ok) {
+          lines.push(`后台：可用（/api/health 200，OAuth ${data.oauthConfigured ? '已配置' : '未配置'}）`);
+          lines.push('GitHub API：经本地后台 /api/github/proxy 代理');
+        } else {
+          lines.push(`后台：不可用（/api/health 返回非 JSON/异常，HTTP ${res.status}）`);
+          lines.push('GitHub API：浏览器直连（可能被拦截）');
+        }
+      } else {
+        lines.push(`后台：不可用（/api/health HTTP ${res.status}）——当前是静态页面，没有代理`);
+        lines.push('GitHub API：浏览器直连（可能被拦截）');
+      }
+    } catch (error) {
+      lines.push(`后台：/api/health 请求失败（${error.message}）`);
+      lines.push('GitHub API：浏览器直连（可能被拦截）');
+    }
+    if (state.serverMode) {
+      lines.push('结论：服务端模式，正常。');
+    } else {
+      lines.push('结论：静态模式。请用 `npm run admin` 启动后台，并从它打印的 http://127.0.0.1:4180/admin.html 打开本页。');
+    }
+    setStatus(lines.join('\n'), state.serverMode ? 'ok' : 'error');
   }
 
   async function loginWithToken(token, { silent = false } = {}) {
@@ -822,11 +858,14 @@
     el.patBox.hidden = authed;
 
     if (state.serverMode) {
-      el.hostBadge.textContent = state.serverOauth ? '服务端模式 · OAuth 可用' : '服务端模式 · 仅 PAT';
+      el.hostBadge.textContent = state.serverOauth ? '服务端模式 · OAuth 可用' : '服务端模式 · 代理已启用';
       el.hostBadge.classList.add('is-server');
+      el.modeHint.textContent = `已连接本地后台：${window.location.origin}（GitHub API 经 /api/github/proxy 代理）。`;
     } else {
-      el.hostBadge.textContent = '静态模式 · PAT 登录';
+      el.hostBadge.textContent = '静态模式 · 浏览器直连';
       el.hostBadge.classList.remove('is-server');
+      el.modeHint.textContent =
+        '当前页面未连接本地后台（/api/health 不可用），将直连 api.github.com。若登录/读取报 Failed to fetch，请改用 npm run admin 启动后台，并从它打印的 http://127.0.0.1:4180/admin.html 打开。';
     }
 
     el.loginGate.hidden = authed;

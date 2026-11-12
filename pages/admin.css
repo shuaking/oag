@@ -326,6 +326,10 @@ code {
   color: var(--text-3);
   word-break: break-all;
 }
+.status-actions {
+  display: flex;
+  gap: 8px;
+}
 .head-info a {
   color: var(--accent);
   text-decoration: none;
