@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "f25d7529-41bd-415f-a721-37b78a4108aa",
+  "path": "vibe-coding-pro",
+  "path_key": "vibe-coding-pro",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

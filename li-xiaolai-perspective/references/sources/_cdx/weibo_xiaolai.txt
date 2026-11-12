@@ -1,0 +1,15 @@
+20120613012734 http://weibo.com/xiaolai31022 301
+20141101041248 http://weibo.com:80/xiaolai629 301
+20141010074019 http://weibo.com:80/xiaolai91 301
+20121123214242 http://weibo.com/xiaolailai2012 301
+20131220174557 http://weibo.com:80/xiaolaili? 302
+20131222232345 http://weibo.com:80/xiaolaili?topnav=1&wvr=5&topsug=1 302
+20171121011729 http://weibo.com/xiaolaimao007 302
+20170707013349 http://weibo.com/xiaolaimao007/home?wvr=5&lf=reg 302
+20170705170554 http://weibo.com/xiaolaimao007?refer_flag=1005050010_ 200
+20171125073136 https://weibo.com/xiaolaimao007?ssl_rnd=1511227049.3849 200
+20120208154617 http://weibo.com/xiaolaimao0913 301
+20160402214847 http://weibo.com/xiaolaiwu 200
+20120818133458 http://weibo.com:80/xiaolaix 302
+20130904114650 http://weibo.com/xiaolaixiaoqu 301
+20120105154410 http://weibo.com/xiaolaiyyy 301
