@@ -63,6 +63,11 @@
               </p>
               <input id="patInput" type="password" placeholder="ghp_... 或 github_pat_..." autocomplete="off" />
               <button id="patLoginBtn" class="btn btn-primary" type="button">用令牌登录</button>
+              <button id="openGitHubBtn" class="btn" type="button">在本机浏览器打开 GitHub 创建令牌 ↗</button>
+              <p class="hint">
+                未填写令牌时点「用令牌登录」会在本机浏览器打开 GitHub 令牌页。细粒度令牌需授权本仓库
+                <code>Contents: Read and write</code>；经典令牌勾选 <code>repo</code>。
+              </p>
             </div>
             <div id="deviceBox" class="auth-block" hidden>
               <p class="hint">或使用 GitHub 设备码登录（需要后台服务器配置 OAuth App Client ID）。</p>
@@ -185,6 +190,7 @@
         <p id="deviceCode" class="device-code">----</p>
         <p id="deviceStatus" class="hint">等待授权…</p>
         <div class="modal-actions">
+          <button id="openDeviceUriBtn" class="btn" type="button">在本机浏览器打开 ↗</button>
           <button id="deviceCancelBtn" class="btn" type="button">取消</button>
         </div>
       </div>

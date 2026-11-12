@@ -71,9 +71,17 @@ async function main() {
   server.listen(port, host, () => {
     const address = server.address();
     const actualPort = typeof address === 'object' && address ? address.port : port;
-    console.log(`OAG admin console: http://${host}:${actualPort}/admin.html`);
+    const adminUrl = `http://${host}:${actualPort}/admin.html`;
+    console.log(`OAG admin console: ${adminUrl}`);
     console.log(`OAuth device flow: ${CLIENT_ID ? 'enabled' : 'disabled (set OAG_GITHUB_CLIENT_ID to enable)'}`);
     console.log('Press Ctrl+C to stop.');
+    if (process.env.OAG_NO_OPEN !== '1') {
+      try {
+        openExternal(adminUrl);
+      } catch (error) {
+        console.warn(`Could not open the browser automatically: ${error.message}`);
+      }
+    }
   });
 
   process.on('SIGINT', () => {
@@ -150,7 +158,54 @@ async function handleApi(request, response, pathname) {
     return true;
   }
 
+  if (pathname === '/api/open-external') {
+    if (request.method !== 'POST') {
+      sendJson(response, 405, { error: 'method_not_allowed' });
+      return true;
+    }
+    const body = await readJsonBody(request);
+    const target = typeof body.url === 'string' ? body.url.trim() : '';
+    if (!isAllowedExternalUrl(target)) {
+      sendJson(response, 400, {
+        error: 'invalid_url',
+        error_description: '只允许打开 https://github.com/ 下的地址。',
+      });
+      return true;
+    }
+    try {
+      openExternal(target);
+      sendJson(response, 200, { ok: true, url: target });
+    } catch (error) {
+      sendJson(response, 500, { error: 'open_failed', error_description: error.message });
+    }
+    return true;
+  }
+
   return false;
+}
+
+function isAllowedExternalUrl(value) {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'https:') return false;
+    return parsed.hostname === 'github.com' || parsed.hostname === 'www.github.com';
+  } catch {
+    return false;
+  }
+}
+
+function openExternal(url) {
+  const options = { detached: true, stdio: 'ignore', windowsHide: true };
+  if (process.platform === 'win32') {
+    const child = spawn('cmd.exe', ['/c', 'start', '', url], options);
+    child.unref();
+  } else if (process.platform === 'darwin') {
+    const child = spawn('open', [url], options);
+    child.unref();
+  } else {
+    const child = spawn('xdg-open', [url], options);
+    child.unref();
+  }
 }
 
 async function serveStatic(request, response, pathname) {

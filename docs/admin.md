@@ -16,6 +16,7 @@
    - 细粒度令牌（Fine-grained）：只授权目标仓库，权限选 **Contents: Read and write**。
    - 经典令牌（Classic）：勾选 `repo`。
 2. 打开后台页面，在左侧「GitHub 登录」里粘贴令牌，点击「用令牌登录」。
+   - 令牌框为空时点「用令牌登录」，或点「在本机浏览器打开 GitHub 创建令牌」，后台会在**本机默认浏览器**打开 GitHub 令牌页（`npm run admin` 通过 `/api/open-external` 唤起本机浏览器；纯静态站点则退化为新标签页）。
 
 令牌只保存在当前浏览器的 `sessionStorage`，关闭标签页即失效，不会写入仓库或提交历史。
 
@@ -89,3 +90,4 @@
 | `OAG_GITHUB_CLIENT_ID` | 启用 OAuth 设备码登录 | 空（仅 PAT） |
 | `PORT` | 后台服务端口 | `4173` |
 | `HOST` | 后台服务监听地址 | `127.0.0.1` |
+| `OAG_NO_OPEN` | 设为 `1` 时启动后台不自动打开浏览器 | 空（自动打开） |

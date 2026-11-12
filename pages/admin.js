@@ -12,6 +12,7 @@
   const TOOLS = ['claude', 'codex', 'opencode'];
   const REPO_KEY = 'oag-admin-repo';
   const TOKEN_KEY = 'oag-admin-token';
+  const TOKEN_NEW_URL = 'https://github.com/settings/tokens/new?scopes=repo&description=OAG%20Admin%20Console';
   const CFG = Object.assign({ owner: 'shuaking', repo: 'oag', branch: 'main' }, window.OAG_ADMIN_CONFIG || {});
 
   const state = {
@@ -24,6 +25,7 @@
     serverOauth: false,
     busy: false,
     deviceCancel: false,
+    deviceVerificationUri: '',
   };
 
   const $ = (id) => document.getElementById(id);
@@ -56,13 +58,13 @@
     const ids = [
       'hostBadge', 'topDeviceLoginBtn', 'userChip', 'userAvatar', 'userName', 'logoutBtn',
       'ownerInput', 'repoInput', 'branchInput', 'repoHint',
-      'patBox', 'patInput', 'patLoginBtn', 'deviceBox', 'deviceLoginBtn',
+      'patBox', 'patInput', 'patLoginBtn', 'openGitHubBtn', 'deviceBox', 'deviceLoginBtn',
       'statusLog', 'headInfo',
       'assetTotal', 'typeFilters', 'refreshBtn', 'loginGate', 'assetLoading', 'assetList',
       'createGate', 'createForm', 'typeSelect', 'nameInput', 'descInput', 'toolToggles',
       'mainFileName', 'mainFileHint', 'mainContent', 'addExtraBtn', 'extraFiles',
       'manifestPreview', 'submitBtn', 'resetFormBtn', 'formStatus',
-      'deviceModal', 'deviceUri', 'deviceCode', 'deviceStatus', 'deviceCancelBtn', 'toast',
+      'deviceModal', 'deviceUri', 'deviceCode', 'deviceStatus', 'deviceCancelBtn', 'openDeviceUriBtn', 'toast',
       'viewList', 'viewCreate',
     ];
     ids.forEach((id) => { el[id] = $(id); });
@@ -86,13 +88,23 @@
     el.patLoginBtn.addEventListener('click', () => {
       const token = el.patInput.value.trim();
       if (!token) {
-        setStatus('请输入个人访问令牌（PAT）。', 'error');
+        setStatus('已在本机浏览器打开 GitHub 令牌页：创建后把令牌粘贴回来再点「用令牌登录」。', 'ok');
+        openExternal(TOKEN_NEW_URL);
         return;
       }
       loginWithToken(token).catch((error) => {
         setStatus(`登录失败：${error.message}`, 'error');
         showToast(`登录失败：${error.message}`, 'error');
       });
+    });
+
+    el.openGitHubBtn.addEventListener('click', () => {
+      setStatus('已在本机浏览器打开 GitHub 令牌页。', 'ok');
+      openExternal(TOKEN_NEW_URL);
+    });
+
+    el.openDeviceUriBtn.addEventListener('click', () => {
+      if (state.deviceVerificationUri) openExternal(state.deviceVerificationUri);
     });
 
     const startDevice = () => startDeviceLogin().catch((error) => {
@@ -227,6 +239,7 @@
     el.deviceUri.appendChild(document.createTextNode('打开 '));
     el.deviceUri.appendChild(link);
     el.deviceStatus.textContent = '等待授权…（已自动轮询）';
+    state.deviceVerificationUri = data.verification_uri || 'https://github.com/login/device';
     el.deviceModal.hidden = false;
 
     const token = await pollDeviceToken(data.device_code, Number(data.interval) || 5, Number(data.expires_in) || 900);
@@ -836,6 +849,28 @@
   }
   function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  // Open github.com in the machine's real browser. When the admin server is
+  // backing this page it launches the OS default browser; otherwise we fall
+  // back to a normal new tab.
+  async function openExternal(url) {
+    if (state.serverMode) {
+      try {
+        const res = await fetch('/api/open-external', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+        if (res.ok) return;
+      } catch {
+        /* fall through to window.open */
+      }
+    }
+    const opened = window.open(url, '_blank', 'noopener');
+    if (!opened) {
+      setStatus(`浏览器拦截了弹窗，请手动打开：${url}`, 'error');
+    }
   }
   async function safeJson(response) {
     const text = await response.text();

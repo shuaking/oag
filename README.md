@@ -122,8 +122,10 @@ Login uses GitHub in one of two ways:
   ```bash
   # 1) Create an OAuth App and enable "Device Flow"; copy its Client ID.
   # 2) Start the admin backend with that Client ID:
-  OAG_GITHUB_CLIENT_ID=<client-id> npm run admin   # http://127.0.0.1:4173/admin.html
+  OAG_GITHUB_CLIENT_ID=<client-id> npm run admin   # opens http://127.0.0.1:4173/admin.html
   ```
+
+`npm run admin` starts the backend and opens the console in your default browser (set `OAG_NO_OPEN=1` to skip). With token login, an empty token box (or the "open GitHub" button) launches GitHub's token page in your local browser.
 
 See [docs/admin.md](docs/admin.md) for setup, fields, and security notes.
 
