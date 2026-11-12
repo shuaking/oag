@@ -58,7 +58,7 @@
     const ids = [
       'hostBadge', 'topDeviceLoginBtn', 'userChip', 'userAvatar', 'userName', 'logoutBtn',
       'ownerInput', 'repoInput', 'branchInput', 'repoHint',
-      'patBox', 'patInput', 'patLoginBtn', 'openGitHubBtn', 'deviceBox', 'deviceLoginBtn',
+      'patBox', 'patInput', 'patLoginBtn', 'openGitHubBtn', 'tokenUrlLink', 'copyTokenUrlBtn', 'deviceBox', 'deviceLoginBtn',
       'statusLog', 'headInfo',
       'assetTotal', 'typeFilters', 'refreshBtn', 'loginGate', 'assetLoading', 'assetList',
       'createGate', 'createForm', 'typeSelect', 'nameInput', 'descInput', 'toolToggles',
@@ -88,7 +88,7 @@
     el.patLoginBtn.addEventListener('click', () => {
       const token = el.patInput.value.trim();
       if (!token) {
-        setStatus('已在本机浏览器打开 GitHub 令牌页：创建后把令牌粘贴回来再点「用令牌登录」。', 'ok');
+        setStatus('正在尝试打开 GitHub 令牌页；若浏览器拦截弹窗，请手动点击左侧「GitHub 令牌创建页」链接。', 'ok');
         openExternal(TOKEN_NEW_URL);
         return;
       }
@@ -98,10 +98,16 @@
       });
     });
 
-    el.openGitHubBtn.addEventListener('click', () => {
-      setStatus('已在本机浏览器打开 GitHub 令牌页。', 'ok');
-      openExternal(TOKEN_NEW_URL);
+    el.openGitHubBtn.addEventListener('click', (event) => {
+      // Native anchor navigation opens a tab; when backed by the admin server,
+      // prefer launching the OS default browser instead.
+      if (state.serverMode) {
+        event.preventDefault();
+        openExternal(TOKEN_NEW_URL);
+      }
     });
+
+    el.copyTokenUrlBtn.addEventListener('click', () => copyText(TOKEN_NEW_URL));
 
     el.openDeviceUriBtn.addEventListener('click', () => {
       if (state.deviceVerificationUri) openExternal(state.deviceVerificationUri);
@@ -853,7 +859,8 @@
 
   // Open github.com in the machine's real browser. When the admin server is
   // backing this page it launches the OS default browser; otherwise we fall
-  // back to a normal new tab.
+  // back to a real anchor click (not window.open), which is far less likely to
+  // be blocked by popup blockers.
   async function openExternal(url) {
     if (state.serverMode) {
       try {
@@ -864,13 +871,42 @@
         });
         if (res.ok) return;
       } catch {
-        /* fall through to window.open */
+        /* fall through to anchor click */
       }
     }
-    const opened = window.open(url, '_blank', 'noopener');
-    if (!opened) {
-      setStatus(`浏览器拦截了弹窗，请手动打开：${url}`, 'error');
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.target = '_blank';
+    anchor.rel = 'noopener noreferrer';
+    anchor.style.display = 'none';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  }
+
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        setStatus('链接已复制到剪贴板。', 'ok');
+        return;
+      }
+    } catch {
+      /* fall through */
     }
+    const input = document.createElement('textarea');
+    input.value = text;
+    input.style.position = 'fixed';
+    input.style.opacity = '0';
+    document.body.appendChild(input);
+    input.select();
+    try {
+      document.execCommand('copy');
+      setStatus('链接已复制到剪贴板。', 'ok');
+    } catch {
+      setStatus(`复制失败，请手动复制：${text}`, 'error');
+    }
+    input.remove();
   }
   async function safeJson(response) {
     const text = await response.text();

@@ -369,6 +369,13 @@ code {
   font-size: 0.74rem;
   border-radius: 8px;
 }
+a.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  line-height: 1.4;
+}
 .btn-lg {
   padding: 11px 22px;
   font-size: 0.95rem;
